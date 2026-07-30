@@ -1,0 +1,14 @@
+{
+  "name": "nhattruyen-paperback-source",
+  "version": "1.0.0",
+  "description": "NhatTruyen/NetTruyen source for Paperback 0.8",
+  "scripts": {
+    "bundle": "paperback-cli bundle",
+    "serve": "paperback-cli serve"
+  },
+  "devDependencies": {
+    "@paperback/types": "0.8.0-alpha.0",
+    "paperback-cli": "^0.4.0",
+    "typescript": "^4.9.5"
+  }
+}
