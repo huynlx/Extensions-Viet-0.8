@@ -21,12 +21,12 @@ import {
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { Parser } from './NhatTruyenParser';
-import { domainSettings, getDomain, resetSettings } from './NhatTruyenSetting';
+import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './NhatTruyenSetting';
 
 const DOMAIN = 'https://nhattruyenqq.com/';
 
 export const NhatTruyenInfo: SourceInfo = {
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'NhatTruyen',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
@@ -98,8 +98,8 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
     async getSourceMenu(): Promise<DUISection> {
         return App.createDUISection({
             id: 'main',
-            header: 'Source Settings',
-            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
+            header: 'Cài đặt Nguồn Truyện',
+            rows: async () => [domainSettings(this.stateManager), cdnSettings(this.stateManager), testConnectionButton(this.stateManager), resetSettings(this.stateManager)],
             isHidden: false,
         });
     }
