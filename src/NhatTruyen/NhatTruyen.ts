@@ -162,23 +162,8 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const baseUrl = await this.getBaseUrl();
-
-        const request = App.createRequest({
-            url: `${baseUrl}/Comic/Services/ComicService.asmx/ChapterList?slug=${mangaId}`,
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
-        });
-
-        const response = await this.requestManager.schedule(request, 1);
-        this.CloudFlareError(response.status);
-
-        // Parse dữ liệu JSON
-        const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-        const chapterList: any[] = json?.data ?? [];
-
-        return this.parser.parseChapterList(chapterList);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+        return this.parser.parseChapterList($);
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {

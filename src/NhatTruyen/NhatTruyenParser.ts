@@ -72,22 +72,28 @@ export class Parser {
     }
 
     // Parse danh sách chapter
-    parseChapterList(data: any[]): Chapter[] {
+    parseChapterList($: CheerioAPI): Chapter[] {
         const chapters: Chapter[] = [];
 
-        for (const item of data) {
-            // ID chapter có thể dùng chapter_id (dạng chuỗi) hoặc chapter_slug tuỳ theo cách bạn gọi API lấy ảnh chi tiết
-            const chapterId = item.chapter_num ?? 0;
+        $('.list-chapter ul li.row').each((_, element) => {
+            const chapterLink = $(element).find('a').attr('href') ?? '';
+            const chapterName = $(element).find('a').text().trim();
 
-            chapters.push(
-                App.createChapter({
-                    id: chapterId,
-                    name: item.chapter_name,
-                    chapNum: item.chapter_num ?? 0,
-                    time: new Date(item.updated_at), // Khai báo thời gian cập nhật
-                })
-            );
-        }
+            // Lấy ID chapter (VD: .../chuong-541 -> 541)
+            const chapterId = chapterLink.split('/').pop()?.replace('chuong-', '') ?? '';
+            const chapNum = parseFloat(chapterName.match(/(\d+(\.\d+)?)/)?.[0] ?? '0');
+
+            if (chapterId) {
+                chapters.push(
+                    App.createChapter({
+                        id: chapterId,
+                        name: chapterName,
+                        chapNum: chapNum,
+                        langCode: 'vi-VN',
+                    })
+                );
+            }
+        });
 
         return chapters;
     }
