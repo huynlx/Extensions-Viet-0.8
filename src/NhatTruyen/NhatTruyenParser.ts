@@ -1,6 +1,7 @@
 import { Chapter, PartialSourceManga, Tag, TagSection } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { decodeHTML } from 'entities';
+import { parse, format } from 'date-fns';
 
 export class Parser {
     parseFeaturedSection($: CheerioAPI): PartialSourceManga[] {
@@ -212,13 +213,16 @@ export class Parser {
 
             const formattedView = new Intl.NumberFormat('vi-VN').format(item.view);
 
+            // Dùng thư viện ép kiểu chuỗi 'yyyy-MM-dd HH:mm:ss' sang 'dd/MM/yyyy'
+            const formattedTime = item.updated_at ? format(parse(item.updated_at, 'yyyy-MM-dd HH:mm:ss', new Date()), 'dd/MM/yyyy') : '';
+
             chapters.push(
                 App.createChapter({
                     id: item.chapter_num.toString(),
                     name: item.chapter_name,
                     chapNum: item.chapter_num,
                     time: new Date(item.updated_at), // Khai báo thời gian cập nhật
-                    group: formattedView + ' lượt xem',
+                    group: formattedTime + ' - ' + formattedView + ' lượt xem',
                     langCode: '🇻🇳',
                 })
             );
