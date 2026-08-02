@@ -36,10 +36,6 @@ export const HentaiVNInfo: SourceInfo = {
     websiteBaseURL: DOMAIN,
     sourceTags: [
         {
-            text: 'Recommended',
-            type: BadgeColor.BLUE,
-        },
-        {
             text: 'Hentai',
             type: BadgeColor.RED,
         },
