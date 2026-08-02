@@ -199,46 +199,85 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
     }
 
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
-        const page = metadata?.page ?? 1;
-        const search_term = encodeURIComponent(query.title ?? '');
+        const page: number = metadata?.page ?? 1;
         const baseUrl = await this.getBaseUrl();
 
-        let url = `${baseUrl}/tim-truyen?keyword=${search_term}`;
-        if (page > 1) {
-            url += `&page=${page}`;
+        let basePath = '/tim-truyen';
+        const params: string[] = [];
+
+        // Duyệt qua tất cả các tag được chọn
+        if (query.includedTags && query.includedTags.length > 0) {
+            for (const tag of query.includedTags) {
+                const tagId = tag.id;
+
+                // Bỏ qua tag "Tất cả" hoặc root ID
+                if (!tagId || tagId === 'all' || tagId === 'tim-truyen') {
+                    continue;
+                }
+
+                if (tagId.includes('=')) {
+                    // Tham số query string (VD: status=1, sort=10)
+                    params.push(tagId);
+                } else {
+                    // Slug thể loại (VD: action-95)
+                    basePath = `/tim-truyen/${tagId}`;
+                }
+            }
         }
+
+        // Từ khóa tìm kiếm
+        if (query.title?.trim()) {
+            params.push(`keyword=${encodeURIComponent(query.title.trim())}`);
+        }
+
+        // Phân trang
+        params.push(`page=${page}`);
+
+        const queryString = params.length > 0 ? `?${params.join('&')}` : '';
+        const url = `${baseUrl}${basePath}${queryString}`;
 
         const $ = await this.DOMHTML(url);
         const manga = this.parser.parseSearchResults($);
 
+        // Kiểm tra trang tiếp theo bằng pagination active
+        const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;
+
         return App.createPagedResults({
             results: manga,
-            metadata: manga.length > 0 ? { page: page + 1 } : undefined,
+            metadata: hasNextPage ? { page: page + 1 } : undefined,
         });
     }
 
     async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const page: number = metadata?.page ?? 1;
         const baseUrl = await this.getBaseUrl();
-        let url = baseUrl;
 
-        switch (homepageSectionId) {
-            case 'hot':
-                url = `${baseUrl}/truyen-tranh-hot?page=${page}`;
-                break;
-            case 'new_updated':
-                url = `${baseUrl}/tim-truyen?sort=10&page=${page}`;
-                break;
-            default:
-                throw new Error("Requested to getViewMoreItems for a section ID which doesn't exist");
+        const sectionConfig: Record<string, { url: string; parse: ($: CheerioAPI) => any[] }> = {
+            hot: {
+                url: `${baseUrl}/truyen-tranh-hot?page=${page}`,
+                parse: ($) => this.parser.parseHotSection($),
+            },
+            new_updated: {
+                url: `${baseUrl}?page=${page}`,
+                parse: ($) => this.parser.parseNewUpdatedSection($),
+            },
+        };
+
+        const config = sectionConfig[homepageSectionId];
+
+        if (!config) {
+            throw new Error(`Invalid homepage section ID: ${homepageSectionId}`);
         }
 
-        const $ = await this.DOMHTML(url);
-        const manga = this.parser.parseSearchResults($);
+        const $ = await this.DOMHTML(config.url);
+        const manga = config.parse($);
+
+        // Kiểm tra xem còn trang tiếp theo hay không
+        const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;
 
         return App.createPagedResults({
             results: manga,
-            metadata: manga.length > 0 ? { page: page + 1 } : undefined,
+            metadata: hasNextPage ? { page: page + 1 } : undefined,
         });
     }
 
