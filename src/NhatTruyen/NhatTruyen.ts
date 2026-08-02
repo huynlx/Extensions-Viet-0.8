@@ -107,7 +107,7 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const baseUrl = await this.getBaseUrl();
 
-        // 1. Khởi tạo sẵn các Section
+        // 1. Khởi tạo các Section
         const featuredSection = App.createHomeSection({
             id: 'featured',
             title: 'Truyện Đề Cử',
@@ -129,27 +129,62 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
             type: HomeSectionType.singleRowNormal,
         });
 
+        const boysSection = App.createHomeSection({
+            id: 'boys',
+            title: 'Truyện Dành Cho Con Trai',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        const girlsSection = App.createHomeSection({
+            id: 'girls',
+            title: 'Truyện Dành Cho Con Gái',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        const completedSection = App.createHomeSection({
+            id: 'completed',
+            title: 'Truyện Đã Hoàn Thành',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
         // Callback khung rỗng trước để UI hiển thị skeleton loading
         sectionCallback(featuredSection);
         sectionCallback(newUpdatedSection);
         sectionCallback(hotSection);
+        sectionCallback(boysSection);
+        sectionCallback(girlsSection);
+        sectionCallback(completedSection);
 
-        // 2. Fetch song song HTML trang chủ và trang Truyện Hot để tối ưu thời gian
-        const [$home, $hot] = await Promise.all([this.DOMHTML(baseUrl), this.DOMHTML(`${baseUrl}/truyen-tranh-hot`)]);
+        // 2. Fetch song song HTML của các trang
+        const [$home, $hot, $boys, $girls, $completed] = await Promise.all([
+            this.DOMHTML(baseUrl),
+            this.DOMHTML(`${baseUrl}/truyen-tranh-hot`),
+            this.DOMHTML(`${baseUrl}/truyen-tranh-con-trai`),
+            this.DOMHTML(`${baseUrl}/truyen-tranh-con-gai`),
+            this.DOMHTML(`${baseUrl}/tim-truyen?status=2&sort=30`),
+        ]);
 
-        // 3. Parse dữ liệu riêng cho từng Section
-
-        // Featured: Lấy trong slider đề cử từ trang chủ
+        // 3. Parse dữ liệu cho từng Section
         featuredSection.items = this.parser.parseFeaturedSection($home);
         sectionCallback(featuredSection);
 
-        // New Updated: Lấy danh sách truyện mới cập nhật từ trang chủ
         newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
         sectionCallback(newUpdatedSection);
 
-        // Hot: Lấy danh sách truyện Hot từ HTML của trang /truyen-tranh-hot
         hotSection.items = this.parser.parseHotSection($hot);
         sectionCallback(hotSection);
+
+        boysSection.items = this.parser.parseSearchResults($boys);
+        sectionCallback(boysSection);
+
+        girlsSection.items = this.parser.parseSearchResults($girls);
+        sectionCallback(girlsSection);
+
+        completedSection.items = this.parser.parseSearchResults($completed);
+        sectionCallback(completedSection);
     }
 
     async getSearchTags(): Promise<TagSection[]> {
@@ -261,6 +296,18 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
                 url: `${baseUrl}?page=${page}`,
                 parse: ($) => this.parser.parseNewUpdatedSection($),
             },
+            boys: {
+                url: `${baseUrl}/truyen-tranh-con-trai?page=${page}`,
+                parse: ($) => this.parser.parseSearchResults($),
+            },
+            girls: {
+                url: `${baseUrl}/truyen-tranh-con-gai?page=${page}`,
+                parse: ($) => this.parser.parseSearchResults($),
+            },
+            completed: {
+                url: `${baseUrl}/tim-truyen?status=2&sort=30&page=${page}`,
+                parse: ($) => this.parser.parseSearchResults($),
+            },
         };
 
         const config = sectionConfig[homepageSectionId];
@@ -272,7 +319,6 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
         const $ = await this.DOMHTML(config.url);
         const manga = config.parse($);
 
-        // Kiểm tra xem còn trang tiếp theo hay không
         const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;
 
         return App.createPagedResults({
