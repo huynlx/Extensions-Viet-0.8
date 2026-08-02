@@ -1,4 +1,4 @@
-# NhatTruyen Source for Paperback 0.8
+# Vietnamese Source for Paperback 0.8
 
 This project provides a Paperback 0.8 source for reading manga from NhatTruyen. It includes core features such as homepage sections, search, chapter listing, and custom domain configuration for sites that frequently change domains.
 
