@@ -1,17 +1,24 @@
-# Dependencies
-node_modules/
+#compiled files and the monstor that node usually is
+node_modules
+dist
+bundles
+tmp
+deprecated/
 
-# Build output
-bundles/
-lib/
-*.tsbuildinfo
+#compiled sources
+reference
 
-# Logs
-*.log
-npm-debug.log*
+.prettierrc
+.nyc_output
+coverage
+docs
 
-# Editor / OS
+.idea
+
+*.test.ts
+
+# mac stuff
 .DS_Store
-Thumbs.db
-.idea/
-*.swp
+
+# other stuff
+PRD.*
