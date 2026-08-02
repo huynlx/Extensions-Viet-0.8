@@ -20,18 +20,18 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { Parser } from './NhatTruyenParser';
-import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './NhatTruyenSetting';
+import { Parser } from './HentaiVNParser';
+import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './HentaiVNSetting';
 
-const DOMAIN = 'https://nhattruyenqq.com/';
+const DOMAIN = 'https://www.hentaivnx.com/';
 
-export const NhatTruyenInfo: SourceInfo = {
+export const HentaiVNInfo: SourceInfo = {
     version: '1.0.1',
-    name: 'NhatTruyen',
+    name: 'HentaiVN',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
-    description: 'Extension that pulls manga from NhatTruyen.',
+    description: 'Extension that pulls manga from HentaiVN.',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
@@ -40,14 +40,22 @@ export const NhatTruyenInfo: SourceInfo = {
             type: BadgeColor.BLUE,
         },
         {
+            text: 'Hentai',
+            type: BadgeColor.RED,
+        },
+        {
             text: 'Vietnamese',
             type: BadgeColor.GREEN,
+        },
+        {
+            text: '18+',
+            type: BadgeColor.RED,
         },
     ],
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
-export class NhatTruyen implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+export class HentaiVN implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
@@ -77,7 +85,7 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
     });
 
     getMangaShareUrl(mangaId: string): string {
-        return `${this.getBaseUrl()}/truyen-tranh/${mangaId}`;
+        return `${this.getBaseUrl()}/truyen-hentai/${mangaId}`;
     }
 
     private async DOMHTML(url: string): Promise<CheerioAPI> {
@@ -133,43 +141,13 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
             type: HomeSectionType.singleRowNormal,
         });
 
-        const boysSection = App.createHomeSection({
-            id: 'boys',
-            title: 'Truyện Dành Cho Con Trai',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const girlsSection = App.createHomeSection({
-            id: 'girls',
-            title: 'Truyện Dành Cho Con Gái',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const completedSection = App.createHomeSection({
-            id: 'completed',
-            title: 'Truyện Đã Hoàn Thành',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
         // Callback khung rỗng trước để UI hiển thị skeleton loading
         sectionCallback(featuredSection);
         sectionCallback(newUpdatedSection);
         sectionCallback(hotSection);
-        sectionCallback(boysSection);
-        sectionCallback(girlsSection);
-        sectionCallback(completedSection);
 
         // 2. Fetch song song HTML của các trang
-        const [$home, $hot, $boys, $girls, $completed] = await Promise.all([
-            this.DOMHTML(baseUrl),
-            this.DOMHTML(`${baseUrl}/truyen-tranh-hot`),
-            this.DOMHTML(`${baseUrl}/truyen-tranh-con-trai`),
-            this.DOMHTML(`${baseUrl}/truyen-tranh-con-gai`),
-            this.DOMHTML(`${baseUrl}/tim-truyen?status=2&sort=30`),
-        ]);
+        const [$home, $hot] = await Promise.all([this.DOMHTML(baseUrl), this.DOMHTML(`${baseUrl}/tim-truyen-nang-cao?genres=&notgenres=&minchapter=0&sort=10&contain=`)]);
 
         // 3. Parse dữ liệu cho từng Section
         featuredSection.items = this.parser.parseFeaturedSection($home);
@@ -180,55 +158,29 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
 
         hotSection.items = this.parser.parseHotSection($hot);
         sectionCallback(hotSection);
-
-        boysSection.items = this.parser.parseSearchResults($boys);
-        sectionCallback(boysSection);
-
-        girlsSection.items = this.parser.parseSearchResults($girls);
-        sectionCallback(girlsSection);
-
-        completedSection.items = this.parser.parseSearchResults($completed);
-        sectionCallback(completedSection);
     }
 
     async getSearchTags(): Promise<TagSection[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/tim-truyen`);
+        const $ = await this.DOMHTML(`${baseUrl}/tim-truyen-nang-cao`);
         return this.parser.parseTags($);
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${mangaId}`);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const baseUrl = await this.getBaseUrl();
-
-        const request = App.createRequest({
-            url: `${baseUrl}/Comic/Services/ComicService.asmx/ChapterList?slug=${mangaId}`,
-            method: 'GET',
-            headers: {
-                referer: `${baseUrl}/truyen-tranh/${mangaId}`,
-                'x-requested-with': 'XMLHttpRequest',
-                accept: 'application/json, text/javascript, */*; q=0.01',
-            },
-        });
-
-        const response = await this.requestManager.schedule(request, 1);
-        this.CloudFlareError(response.status);
-
-        // Parse dữ liệu JSON
-        const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-        const chapterList: any[] = json?.data ?? [];
-
-        return this.parser.parseChapterList(chapterList);
+        const $ = await this.DOMHTML(`${baseUrl}truyen-hentai/${mangaId}`);
+        return this.parser.parseChapterList($);
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}/chuong-${chapterId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${chapterId}`);
         const pages = this.parser.parseChapterDetails($);
         return App.createChapterDetails({
             id: chapterId,
@@ -293,24 +245,12 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
 
         const sectionConfig: Record<string, { url: string; parse: ($: CheerioAPI) => any[] }> = {
             hot: {
-                url: `${baseUrl}/truyen-tranh-hot?page=${page}`,
+                url: `${baseUrl}/tim-truyen-nang-cao?genres=&notgenres=&minchapter=0&sort=10&contain=&page=${page}`,
                 parse: ($) => this.parser.parseHotSection($),
             },
             new_updated: {
                 url: `${baseUrl}?page=${page}`,
                 parse: ($) => this.parser.parseNewUpdatedSection($),
-            },
-            boys: {
-                url: `${baseUrl}/truyen-tranh-con-trai?page=${page}`,
-                parse: ($) => this.parser.parseSearchResults($),
-            },
-            girls: {
-                url: `${baseUrl}/truyen-tranh-con-gai?page=${page}`,
-                parse: ($) => this.parser.parseSearchResults($),
-            },
-            completed: {
-                url: `${baseUrl}/tim-truyen?status=2&sort=30&page=${page}`,
-                parse: ($) => this.parser.parseSearchResults($),
             },
         };
 
