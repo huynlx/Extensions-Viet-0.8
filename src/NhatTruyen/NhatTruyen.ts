@@ -106,51 +106,55 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const baseUrl = await this.getBaseUrl();
-        const sections: HomeSection[] = [
-            App.createHomeSection({
-                id: 'featured',
-                title: 'Truyện Đề Cử',
-                containsMoreItems: false,
-                type: HomeSectionType.featured,
-            }),
-            App.createHomeSection({
-                id: 'hot',
-                title: 'Truyện Nổi Bật',
-                containsMoreItems: true,
-                type: HomeSectionType.singleRowNormal,
-            }),
-            App.createHomeSection({
-                id: 'new_updated',
-                title: 'Truyện Mới Cập Nhật',
-                containsMoreItems: true,
-                type: HomeSectionType.singleRowNormal,
-            }),
-        ];
 
-        for (const section of sections) {
-            sectionCallback(section);
-            let url: string;
-            switch (section.id) {
-                case 'featured':
-                case 'hot':
-                    url = `${baseUrl}/truyen-tranh-hot`;
-                    break;
-                case 'new_updated':
-                    url = baseUrl;
-                    break;
-                default:
-                    throw new Error('Invalid homepage section ID');
-            }
+        // 1. Khởi tạo sẵn các Section
+        const featuredSection = App.createHomeSection({
+            id: 'featured',
+            title: 'Truyện Đề Cử',
+            containsMoreItems: false,
+            type: HomeSectionType.featured,
+        });
 
-            const $ = await this.DOMHTML(url);
-            section.items = this.parser.parseSearchResults($);
-            sectionCallback(section);
-        }
+        const hotSection = App.createHomeSection({
+            id: 'hot',
+            title: 'Truyện Nổi Bật',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        const newUpdatedSection = App.createHomeSection({
+            id: 'new_updated',
+            title: 'Truyện Mới Cập Nhật',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        // Callback khung rỗng trước để UI hiển thị skeleton loading
+        sectionCallback(featuredSection);
+        sectionCallback(newUpdatedSection);
+        sectionCallback(hotSection);
+
+        // 2. Fetch song song HTML trang chủ và trang Truyện Hot để tối ưu thời gian
+        const [$home, $hot] = await Promise.all([this.DOMHTML(baseUrl), this.DOMHTML(`${baseUrl}/truyen-tranh-hot`)]);
+
+        // 3. Parse dữ liệu riêng cho từng Section
+
+        // Featured: Lấy trong slider đề cử từ trang chủ
+        featuredSection.items = this.parser.parseFeaturedSection($home);
+        sectionCallback(featuredSection);
+
+        // New Updated: Lấy danh sách truyện mới cập nhật từ trang chủ
+        newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
+        sectionCallback(newUpdatedSection);
+
+        // Hot: Lấy danh sách truyện Hot từ HTML của trang /truyen-tranh-hot
+        hotSection.items = this.parser.parseHotSection($hot);
+        sectionCallback(hotSection);
     }
 
-    async getTags(): Promise<TagSection[]> {
+    async getSearchTags(): Promise<TagSection[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(baseUrl);
+        const $ = await this.DOMHTML(`${baseUrl}/tim-truyen`);
         return this.parser.parseTags($);
     }
 
