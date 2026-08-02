@@ -1,7 +1,10 @@
 import {
+    BadgeColor,
+    Chapter,
     ChapterDetails,
     ChapterProviding,
     ContentRating,
+    DUISection,
     HomePageSectionsProviding,
     HomeSection,
     HomeSectionType,
@@ -11,181 +14,223 @@ import {
     Response,
     SearchRequest,
     SearchResultsProviding,
-    Source,
     SourceInfo,
     SourceIntents,
     SourceManga,
-    Chapter
-} from '@paperback/types'
+    TagSection,
+} from '@paperback/types';
+import { CheerioAPI } from 'cheerio';
+import { Parser } from './NhatTruyenParser';
+import { domainSettings, getDomain, resetSettings } from './NhatTruyenSetting';
 
-import {
-    isLastPage,
-    parseChapterDetails,
-    parseChapters,
-    parseHomeItems,
-    parseMangaDetails,
-    parseSearchResults
-} from './NhatTruyenParser'
+const DOMAIN = 'https://nhattruyenqq.com/';
 
-import {
-    contentSettings,
-    DEFAULT_DOMAIN,
-    getDomain,
-    resetSettingsButton
-} from './NhatTruyenSettings'
-
-export const NhatTruyenInfo: SourceInfo = {
+export const NhatTruyen2Info: SourceInfo = {
     version: '1.0.0',
     name: 'NhatTruyen',
     icon: 'icon.png',
-    author: 'you',
-    authorWebsite: '',
-    description: 'Nguồn NhatTruyen/NetTruyen (clone theme). Có thể đổi tên miền trong cài đặt.',
-    contentRating: ContentRating.MATURE,
-    websiteBaseURL: DEFAULT_DOMAIN,
-    sourceTags: [{ text: 'Vietnamese', type: 'grey' }],
-    intents:
-        SourceIntents.MANGA_CHAPTERS |
-        SourceIntents.HOMEPAGE_SECTIONS |
-        SourceIntents.SETTINGS_UI
-}
+    author: 'AlanNois',
+    authorWebsite: 'https://github.com/AlanNois/',
+    description: 'Extension that pulls manga from NhatTruyen.',
+    contentRating: ContentRating.EVERYONE,
+    websiteBaseURL: DOMAIN,
+    sourceTags: [
+        {
+            text: 'Recommended',
+            type: BadgeColor.BLUE,
+        },
+    ],
+    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
+};
 
-export class NhatTruyen
-    implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+export class NhatTruyen implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+    constructor(private cheerio: CheerioAPI) {}
 
-    stateManager = App.createSourceStateManager()
+    stateManager = App.createSourceStateManager();
+    parser = new Parser();
 
-    requestManager = App.createRequestManager({
-        requestsPerSecond: 4,
-        requestTimeout: 20000,
+    private async getBaseUrl(): Promise<string> {
+        return await getDomain(this.stateManager);
+    }
+
+    readonly requestManager = App.createRequestManager({
+        requestsPerSecond: 2,
+        requestTimeout: 50000,
         interceptor: {
             interceptRequest: async (request: Request): Promise<Request> => {
-                const domain = await getDomain(this.stateManager)
+                const baseUrl = await this.getBaseUrl();
                 request.headers = {
                     ...(request.headers ?? {}),
-                    referer: `${domain}/`,
-                    'user-agent':
-                        'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15'
-                }
-                return request
+                    referer: `${baseUrl}/`,
+                    'user-agent': await this.requestManager.getDefaultUserAgent(),
+                };
+                return request;
             },
-            interceptResponse: async (response: Response): Promise<Response> => response
-        }
-    })
+            interceptResponse: async (response: Response): Promise<Response> => {
+                return response;
+            },
+        },
+    });
 
-    // ---- settings ----
-    async getSourceMenu(): Promise<any> {
+    getMangaShareUrl(mangaId: string): string {
+        return `${DOMAIN}truyen-tranh/${mangaId}`;
+    }
+
+    private async DOMHTML(url: string): Promise<CheerioAPI> {
+        const request = App.createRequest({
+            url: url,
+            method: 'GET',
+        });
+        const response = await this.requestManager.schedule(request, 1);
+        this.CloudFlareError(response.status);
+        return this.cheerio.load(response.data as string);
+    }
+
+    CloudFlareError(status: number) {
+        if (status === 403) {
+            throw new Error('CLOUDFLARE');
+        }
+        if (status === 429) {
+            throw new Error('429');
+        }
+    }
+
+    async getSourceMenu(): Promise<DUISection> {
         return App.createDUISection({
             id: 'main',
-            header: 'Cài đặt nguồn',
+            header: 'Source Settings',
+            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
             isHidden: false,
-            rows: async () => [
-                contentSettings(this.stateManager),
-                resetSettingsButton(this.stateManager)
-            ]
-        })
-    }
-
-    private async fetchCheerio(url: string): Promise<CheerioStatic> {
-        const request = App.createRequest({ url, method: 'GET' })
-        const response = await this.requestManager.schedule(request, 2)
-        this.checkResponseError(response)
-        return this.cheerio.load(response.data as string)
-    }
-
-    private checkResponseError(response: Response): void {
-        if (response.status < 200 || response.status >= 400) {
-            throw new Error(`Request thất bại (HTTP ${response.status}). Có thể tên miền đã đổi — vào cài đặt để cập nhật.`)
-        }
-    }
-
-    async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const domain = await getDomain(this.stateManager)
-        const $ = await this.fetchCheerio(`${domain}/${mangaId}`)
-        return parseMangaDetails($, mangaId)
-    }
-
-    async getChapters(mangaId: string): Promise<Chapter[]> {
-        const domain = await getDomain(this.stateManager)
-        const $ = await this.fetchCheerio(`${domain}/${mangaId}`)
-        return parseChapters($, mangaId)
-    }
-
-    async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const domain = await getDomain(this.stateManager)
-        const $ = await this.fetchCheerio(`${domain}/${chapterId}`)
-        return parseChapterDetails($, mangaId, chapterId)
-    }
-
-    async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
-        const domain = await getDomain(this.stateManager)
-        const page: number = metadata?.page ?? 1
-        const keyword = encodeURIComponent(query.title ?? '')
-
-        // pattern phổ biến: /tim-truyen?keyword=...&page=
-        const url = `${domain}/tim-truyen?keyword=${keyword}&page=${page}`
-        const $ = await this.fetchCheerio(url)
-        const results = parseSearchResults($)
-
-        return App.createPagedResults({
-            results,
-            metadata: isLastPage($) ? undefined : { page: page + 1 }
-        })
+        });
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
-        const domain = await getDomain(this.stateManager)
+        const baseUrl = await this.getBaseUrl();
+        const sections: HomeSection[] = [
+            App.createHomeSection({
+                id: 'featured',
+                title: 'Truyện Đề Cử',
+                containsMoreItems: false,
+                type: HomeSectionType.featured,
+            }),
+            App.createHomeSection({
+                id: 'hot',
+                title: 'Truyện Nổi Bật',
+                containsMoreItems: true,
+                type: HomeSectionType.singleRowNormal,
+            }),
+            App.createHomeSection({
+                id: 'new_updated',
+                title: 'Truyện Mới Cập Nhật',
+                containsMoreItems: true,
+                type: HomeSectionType.singleRowNormal,
+            }),
+        ];
 
-        const sections = [
-            {
-                section: App.createHomeSection({
-                    id: 'hot',
-                    title: 'Truyện HOT',
-                    containsMoreItems: true,
-                    type: HomeSectionType.singleRowNormal
-                }),
-                url: `${domain}/hot`
-            },
-            {
-                section: App.createHomeSection({
-                    id: 'latest',
-                    title: 'Mới cập nhật',
-                    containsMoreItems: true,
-                    type: HomeSectionType.singleRowNormal
-                }),
-                url: `${domain}/?page=1`
+        for (const section of sections) {
+            sectionCallback(section);
+            let url: string;
+            switch (section.id) {
+                case 'featured':
+                case 'hot':
+                    url = `${baseUrl}/truyen-tranh-hot`;
+                    break;
+                case 'new_updated':
+                    url = baseUrl;
+                    break;
+                default:
+                    throw new Error('Invalid homepage section ID');
             }
-        ]
 
-        for (const { section, url } of sections) {
-            sectionCallback(section)
-            try {
-                const $ = await this.fetchCheerio(url)
-                section.items = parseHomeItems($)
-            } catch {
-                section.items = []
-            }
-            sectionCallback(section)
+            const $ = await this.DOMHTML(url);
+            section.items = this.parser.parseSearchResults($);
+            sectionCallback(section);
         }
     }
 
-    async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
-        const domain = await getDomain(this.stateManager)
-        const page: number = metadata?.page ?? 1
-
-        const path = homepageSectionId === 'hot' ? 'hot' : ''
-        const url = `${domain}/${path}${path ? '?' : '?'}page=${page}`.replace('/?', '/?')
-
-        const $ = await this.fetchCheerio(url)
-        const results = parseHomeItems($)
-
-        return App.createPagedResults({
-            results,
-            metadata: isLastPage($) ? undefined : { page: page + 1 }
-        })
+    async getTags(): Promise<TagSection[]> {
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(baseUrl);
+        return this.parser.parseTags($);
     }
 
-    getMangaShareUrl(mangaId: string): string {
-        return `${DEFAULT_DOMAIN}/${mangaId}`
+    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+        return this.parser.parseMangaDetails($, mangaId);
+    }
+
+    async getChapters(mangaId: string): Promise<Chapter[]> {
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+        return this.parser.parseChapterList($);
+    }
+
+    async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}/chuong-${chapterId}`);
+        const pages = this.parser.parseChapterDetails($);
+        return App.createChapterDetails({
+            id: chapterId,
+            mangaId: mangaId,
+            pages: pages,
+        });
+    }
+
+    async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
+        const page = metadata?.page ?? 1;
+        const search_term = encodeURIComponent(query.title ?? '');
+        const baseUrl = await this.getBaseUrl();
+
+        let url = `${baseUrl}/tim-truyen?keyword=${search_term}`;
+        if (page > 1) {
+            url += `&page=${page}`;
+        }
+
+        const $ = await this.DOMHTML(url);
+        const manga = this.parser.parseSearchResults($);
+
+        return App.createPagedResults({
+            results: manga,
+            metadata: manga.length > 0 ? { page: page + 1 } : undefined,
+        });
+    }
+
+    async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
+        const page: number = metadata?.page ?? 1;
+        const baseUrl = await this.getBaseUrl();
+        let url = baseUrl;
+
+        switch (homepageSectionId) {
+            case 'hot':
+                url = `${baseUrl}/truyen-tranh-hot?page=${page}`;
+                break;
+            case 'new_updated':
+                url = `${baseUrl}/tim-truyen?sort=10&page=${page}`;
+                break;
+            default:
+                throw new Error("Requested to getViewMoreItems for a section ID which doesn't exist");
+        }
+
+        const $ = await this.DOMHTML(url);
+        const manga = this.parser.parseSearchResults($);
+
+        return App.createPagedResults({
+            results: manga,
+            metadata: manga.length > 0 ? { page: page + 1 } : undefined,
+        });
+    }
+
+    async getCloudflareBypassRequestAsync(): Promise<Request> {
+        const baseUrl = await this.getBaseUrl();
+        return App.createRequest({
+            url: baseUrl,
+            method: 'GET',
+            headers: {
+                referer: `${baseUrl}/`,
+                origin: `${baseUrl}/`,
+                'user-agent': await this.requestManager.getDefaultUserAgent(),
+            },
+        });
     }
 }
