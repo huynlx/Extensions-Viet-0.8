@@ -174,24 +174,36 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
         const baseUrl = await this.getBaseUrl();
-        // Buondua link dạng https://buondua.com/<mangaId> (không có prefix /truyen/)
-        const $ = await this.DOMHTML(`${baseUrl}/${mangaId}`);
+
+        // Tách lấy ID thực sự từ composite ID (Ví dụ: "slug-55851|https%3A%2F%2F...")
+        const [realMangaId] = mangaId.split('|');
+
+        const $ = await this.DOMHTML(`${baseUrl}/${realMangaId}`);
+
+        // Đưa cả composite mangaId ban đầu vào parser để giữ nguyên ID cho App
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/${mangaId}`);
+
+        // Tách lấy ID thực sự để fetch HTML trang đầu tiên
+        const [realMangaId] = mangaId.split('|');
+
+        const $ = await this.DOMHTML(`${baseUrl}/${realMangaId}`);
         return this.parser.parseChapterList($);
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const baseUrl = await this.getBaseUrl();
+
+        // chapterId đã bao gồm cả path và query param (VD: "slug-55851?page=2")
         const $ = await this.DOMHTML(`${baseUrl}/${chapterId}`);
         const pages = this.parser.parseChapterDetails($);
+
         return App.createChapterDetails({
             id: chapterId,
-            mangaId: mangaId,
+            mangaId: mangaId, // Giữ nguyên composite mangaId
             pages: pages,
         });
     }

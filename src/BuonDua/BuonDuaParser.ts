@@ -30,10 +30,13 @@ export class Parser {
             const subtitleMatch = title.match(/\((\d+\s*photos?)\)/i);
             const subtitle = subtitleMatch ? subtitleMatch[1] : undefined;
 
+            // Ghép ID và URL ảnh bìa lại với nhau
+            const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
+
             if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
-                        mangaId: mangaId,
+                        mangaId: compositeId,
                         title: title,
                         image: image,
                         subtitle: subtitle,
@@ -72,10 +75,13 @@ export class Parser {
             const subtitleMatch = title.match(/\((\d+\s*photos?)\)/i);
             const subtitle = subtitleMatch ? subtitleMatch[1] : undefined;
 
+            // Ghép ID và URL ảnh bìa lại với nhau
+            const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
+
             if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
-                        mangaId: mangaId,
+                        mangaId: compositeId,
                         title: title,
                         image: image,
                         subtitle: subtitle,
@@ -114,10 +120,13 @@ export class Parser {
             const subtitleMatch = title.match(/\(([^)]*(?:photos|pictures|videos)[^)]*)\)/i);
             const subtitle = subtitleMatch?.[1] ? subtitleMatch[1].trim() : undefined;
 
+            // Ghép ID và URL ảnh bìa lại với nhau
+            const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
+
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
-                        mangaId: mangaId,
+                        mangaId: compositeId,
                         title: title,
                         image: image,
                         subtitle: subtitle,
@@ -157,10 +166,13 @@ export class Parser {
             const subtitleMatch = title.match(/\((\d+\s*photos?)\)/i);
             const subtitle = subtitleMatch ? subtitleMatch[1] : undefined;
 
+            // Ghép ID và URL ảnh bìa lại với nhau
+            const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
+
             if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
-                        mangaId: mangaId,
+                        mangaId: compositeId,
                         title: title,
                         image: image,
                         subtitle: subtitle,
@@ -173,7 +185,7 @@ export class Parser {
     }
 
     // Parse thông tin chi tiết truyện
-    parseMangaDetails($: CheerioAPI, mangaId: string) {
+    parseMangaDetails($: CheerioAPI, compositeId: string) {
         // 1. Tiêu đề (Lấy từ .article-header h1)
         const rawTitle = $('.article-header h1').text().trim();
         // Xóa bớt suffix "( Page X / Y )" nếu muốn tiêu đề sạch hơn
@@ -214,11 +226,14 @@ export class Parser {
 
         const description = descParts.join('\n');
 
+        const [realMangaId, encodedCover] = compositeId.split('|');
+        const homeCoverUrl = encodedCover ? decodeURIComponent(encodedCover) : '';
+
         return App.createSourceManga({
-            id: mangaId,
+            id: compositeId,
             mangaInfo: App.createMangaInfo({
                 titles: [decodeHTML(title)],
-                image: image,
+                image: homeCoverUrl,
                 status: 'Completed', // Photopack bài viết trên Buondua luôn là Completed
                 author: author,
                 artist: author,
