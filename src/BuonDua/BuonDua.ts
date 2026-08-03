@@ -259,7 +259,7 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         const manga = this.parser.parseSearchResults($);
 
         // Kiểm tra xem có trang kế tiếp hay không (nếu mảng danh sách trả về rỗng thì hết trang)
-        const hasNextPage = manga.length > 0;
+        const hasNextPage = $('.pagination-next').length > 0;
 
         return App.createPagedResults({
             results: manga,
