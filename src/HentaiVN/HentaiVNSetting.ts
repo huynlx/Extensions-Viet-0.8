@@ -1,6 +1,6 @@
 import { DUIButton, DUINavigationButton, SourceStateManager } from '@paperback/types';
 
-const DEFAULT_BASE_URL = 'https://www.hentaivnx.com/';
+const DEFAULT_BASE_URL = 'https://hentaivnreal.com';
 const DEFAULT_CDN_SERVER = '0'; // 0: Mặc định, 1: Server dự phòng 1, 2: Server dự phòng 2
 
 // --- HELPERS RETRIEVE STATE ---
@@ -18,7 +18,7 @@ export const getCdnServer = async (stateManager: SourceStateManager): Promise<st
 export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {
     return App.createDUINavigationButton({
         id: 'domain_settings',
-        label: 'Ghi đè URL cơ sở',
+        label: 'Thay đổi tên miền',
         form: App.createDUIForm({
             sections: async () => [
                 App.createDUISection({

@@ -20,18 +20,18 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { Parser } from './HentaiVNParser';
-import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './HentaiVNSetting';
+import { Parser } from './HentaiVNXParser';
+import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './HentaiVNXSetting';
 
-const DOMAIN = 'https://hentaivnreal.com';
+const DOMAIN = 'https://www.hentaivnx.com/';
 
-export const HentaiVNInfo: SourceInfo = {
+export const HentaiVNXInfo: SourceInfo = {
     version: '1.0.1',
-    name: 'HentaiVN',
+    name: 'HentaiVNX',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
-    description: 'Extension that pulls manga from HentaiVN.',
+    description: 'Extension that pulls manga from HentaiVNX.',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
@@ -51,7 +51,7 @@ export const HentaiVNInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
-export class HentaiVN implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+export class HentaiVNX implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
@@ -81,7 +81,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
     });
 
     getMangaShareUrl(mangaId: string): string {
-        return `${DOMAIN}/truyen/${mangaId}`;
+        return `${DOMAIN}/truyen-hentai/${mangaId}`;
     }
 
     private async DOMHTML(url: string): Promise<CheerioAPI> {
@@ -123,109 +123,68 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
             type: HomeSectionType.featured,
         });
 
-        const newUpdatedSection = App.createHomeSection({
-            id: 'new_updated',
-            title: 'Truyện Mới Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
         const hotSection = App.createHomeSection({
             id: 'hot',
-            title: 'Truyện Xem Nhiều Nhất',
+            title: 'Truyện Nổi Bật',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
 
-        const oldSection = App.createHomeSection({
-            id: 'old',
-            title: 'Truyện Cũ Nhất',
+        const newUpdatedSection = App.createHomeSection({
+            id: 'new_updated',
+            title: 'Truyện Mới Cập Nhật',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
 
-        const badSection = App.createHomeSection({
-            id: 'bad',
-            title: 'Truyện Xem Ít Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const randomSection = App.createHomeSection({
-            id: 'random',
-            title: 'Truyện Ngẫu Nhiên',
-            containsMoreItems: false,
-            type: HomeSectionType.singleRowLarge,
-        });
-
-        // 2. Callback khung rỗng ngay lập tức
+        // 2. Callback khung rỗng trước để UI hiển thị skeleton loading
         sectionCallback(featuredSection);
         sectionCallback(newUpdatedSection);
-        sectionCallback(randomSection);
         sectionCallback(hotSection);
-        sectionCallback(oldSection);
-        sectionCallback(badSection);
 
-        // 3. Xử lý bất đồng bộ độc lập (Trả về UI ngay khi từng request hoàn thành)
+        // 3. Tải và parse dữ liệu bất đồng bộ độc lập
 
-        // Nguồn 1: Trang chủ (chứa Featured & Random) -> Tải trước để UI có dữ liệu hiển thị ngay
+        // Nguồn 1: Trang chủ (chứa cả Featured & New Updated)
         const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
             featuredSection.items = this.parser.parseFeaturedSection($home);
             sectionCallback(featuredSection);
 
-            randomSection.items = this.parser.parseRandomSection($home);
-            sectionCallback(randomSection);
-        });
-
-        // Nguồn 2: Truyện mới nhất
-        const fetchNewUpdated = this.DOMHTML(`${baseUrl}/danh-sach?sort=latest`).then(($newUpdated) => {
-            newUpdatedSection.items = this.parser.parseNewUpdatedSection($newUpdated);
+            newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
             sectionCallback(newUpdatedSection);
         });
 
-        // Nguồn 3: Truyện xem nhiều nhất
-        const fetchHot = this.DOMHTML(`${baseUrl}/danh-sach?sort=most-viewed`).then(($hot) => {
+        // Nguồn 2: Tìm truyện nâng cao (Xếp hạng Top All)
+        const hotUrl = `${baseUrl}/tim-truyen-nang-cao?genres=&notgenres=&minchapter=0&sort=10&contain=`;
+        const fetchHot = this.DOMHTML(hotUrl).then(($hot) => {
             hotSection.items = this.parser.parseHotSection($hot);
             sectionCallback(hotSection);
         });
 
-        // Nguồn 4: Truyện cũ nhất
-        const fetchOld = this.DOMHTML(`${baseUrl}/danh-sach?sort=oldest`).then(($old) => {
-            oldSection.items = this.parser.parseSearchResults($old);
-            sectionCallback(oldSection);
-        });
-
-        // Nguồn 5: Truyện xem ít nhất
-        const fetchBad = this.DOMHTML(`${baseUrl}/danh-sach?sort=least-viewed`).then(($bad) => {
-            badSection.items = this.parser.parseHotSection($bad);
-            sectionCallback(badSection);
-        });
-
-        // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchOld, fetchBad]);
+        // Chờ tất cả hoàn thành mà không làm nghẽn tiến trình render từng phần
+        await Promise.allSettled([fetchHome, fetchHot]);
     }
 
     async getSearchTags(): Promise<TagSection[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/the-loai`);
+        const $ = await this.DOMHTML(`${baseUrl}/tim-truyen-nang-cao`);
         return this.parser.parseTags($);
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${mangaId}`);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}truyen-hentai/${mangaId}`);
         return this.parser.parseChapterList($);
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen/${chapterId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${chapterId}`);
         const pages = this.parser.parseChapterDetails($);
         return App.createChapterDetails({
             id: chapterId,
@@ -238,38 +197,36 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         const page: number = metadata?.page ?? 1;
         const baseUrl = await this.getBaseUrl();
 
-        let basePath = '/tim-kiem';
+        let basePath = '/tim-truyen';
         const params: string[] = [];
 
-        // 1. Xử lý Thể loại (Included Tags)
+        // Duyệt qua tất cả các tag được chọn
         if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
 
-                if (!tagId || tagId === 'all') {
+                // Bỏ qua tag "Tất cả" hoặc root ID
+                if (!tagId || tagId === 'all' || tagId === 'tim-truyen') {
                     continue;
                 }
 
                 if (tagId.includes('=')) {
-                    // Tham số query string (VD: sort=latest, status=1)
+                    // Tham số query string (VD: status=1, sort=10)
                     params.push(tagId);
                 } else {
-                    // Slug thể loại (VD: 3d-hentai) -> Cấu trúc path: /the-loai/3d-hentai
-                    basePath = `/the-loai/${tagId}`;
+                    // Slug thể loại (VD: action-95)
+                    basePath = `/tim-truyen/${tagId}`;
                 }
             }
         }
 
-        // 2. Xử lý Từ khóa tìm kiếm (Lưu ý: query param là 'q' và kèm theo 'type=title')
+        // Từ khóa tìm kiếm
         if (query.title?.trim()) {
-            params.push(`q=${encodeURIComponent(query.title.trim())}`);
-            params.push('type=title');
+            params.push(`keyword=${encodeURIComponent(query.title.trim())}`);
         }
 
-        // 3. Phân trang
-        if (page > 1) {
-            params.push(`page=${page}`);
-        }
+        // Phân trang
+        params.push(`page=${page}`);
 
         const queryString = params.length > 0 ? `?${params.join('&')}` : '';
         const url = `${baseUrl}${basePath}${queryString}`;
@@ -277,7 +234,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         const $ = await this.DOMHTML(url);
         const manga = this.parser.parseSearchResults($);
 
-        // Kiểm tra trang tiếp theo bằng pagination
+        // Kiểm tra trang tiếp theo bằng pagination active
         const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;
 
         return App.createPagedResults({
@@ -291,21 +248,13 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         const baseUrl = await this.getBaseUrl();
 
         const sectionConfig: Record<string, { url: string; parse: ($: CheerioAPI) => any[] }> = {
-            new_updated: {
-                url: `${baseUrl}/danh-sach?sort=latest&page=${page}`,
-                parse: ($) => this.parser.parseNewUpdatedSection($),
-            },
             hot: {
-                url: `${baseUrl}/danh-sach?sort=most-viewed&page=${page}`,
+                url: `${baseUrl}/tim-truyen-nang-cao?genres=&notgenres=&minchapter=0&sort=10&contain=&page=${page}`,
                 parse: ($) => this.parser.parseHotSection($),
             },
-            old: {
-                url: `${baseUrl}/danh-sach?sort=oldest&page=${page}`,
-                parse: ($) => this.parser.parseSearchResults($),
-            },
-            bad: {
-                url: `${baseUrl}/danh-sach?sort=least-viewed&page=${page}`,
-                parse: ($) => this.parser.parseHotSection($),
+            new_updated: {
+                url: `${baseUrl}?page=${page}`,
+                parse: ($) => this.parser.parseNewUpdatedSection($),
             },
         };
 
@@ -318,8 +267,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         const $ = await this.DOMHTML(config.url);
         const manga = config.parse($);
 
-        // Kiểm tra trang tiếp theo bằng nút active trong pagination
-        const hasNextPage = true;
+        const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;
 
         return App.createPagedResults({
             results: manga,
