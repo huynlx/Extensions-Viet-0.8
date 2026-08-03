@@ -402,7 +402,7 @@ export class Parser {
         const genreTags: Tag[] = [];
         const sortTags: Tag[] = [];
 
-        // 1. Thể loại (Genres) từ ul.genre-cloud
+        // 1. Thể loại: ID CHỈ NÊN LÀ SLUG (Ví dụ: "3d-hentai", không chứa "=")
         $('ul.genre-cloud li a').each((_, element) => {
             const $item = $(element);
             const label = $item.text().trim();
@@ -414,14 +414,14 @@ export class Parser {
             if (slug && label) {
                 genreTags.push(
                     App.createTag({
-                        id: `${slug}`,
+                        id: slug, // Chỉ lưu slug thuần túy
                         label: label,
                     })
                 );
             }
         });
 
-        // 2. Xếp hạng (Sort Options)
+        // 2. Sắp xếp: ID giữ dạng "key=value" (chứa "=")
         const sortOptions = [
             { id: 'sort=latest', label: 'Mới nhất' },
             { id: 'sort=oldest', label: 'Cũ nhất' },

@@ -238,10 +238,10 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         const page: number = metadata?.page ?? 1;
         const baseUrl = await this.getBaseUrl();
 
-        let basePath = '/tim-kiem';
+        let basePath = '';
         const params: string[] = [];
 
-        // 1. Xử lý Thể loại (Included Tags)
+        // 1. Xử lý Thể loại & Sắp xếp từ includedTags
         if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
@@ -251,22 +251,28 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
                 }
 
                 if (tagId.includes('=')) {
-                    // Tham số query string (VD: sort=latest, status=1)
+                    // Tham số query (VD: sort=latest)
                     params.push(tagId);
                 } else {
-                    // Slug thể loại (VD: 3d-hentai) -> Cấu trúc path: /the-loai/3d-hentai
+                    // Slug thể loại (VD: 3d-hentai -> /the-loai/3d-hentai)
                     basePath = `/the-loai/${tagId}`;
                 }
             }
         }
 
-        // 2. Xử lý Từ khóa tìm kiếm (Lưu ý: query param là 'q' và kèm theo 'type=title')
+        // 2. Xử lý Từ khóa tìm kiếm (Ưu tiên đè basePath thành /tim-kiem)
         if (query.title?.trim()) {
+            basePath = '/tim-kiem';
             params.push(`q=${encodeURIComponent(query.title.trim())}`);
             params.push('type=title');
         }
 
-        // 3. Phân trang
+        // 3. Nếu KHÔNG có thể loại lẫn tìm kiếm (chỉ chọn Sort hoặc lấy danh sách mặc định)
+        if (!basePath) {
+            basePath = '/danh-sach';
+        }
+
+        // 4. Phân trang
         if (page > 1) {
             params.push(`page=${page}`);
         }
@@ -277,7 +283,6 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         const $ = await this.DOMHTML(url);
         const manga = this.parser.parseSearchResults($);
 
-        // Kiểm tra trang tiếp theo bằng pagination
         const hasNextPage = true;
 
         return App.createPagedResults({
