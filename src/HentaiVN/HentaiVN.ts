@@ -278,7 +278,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         const manga = this.parser.parseSearchResults($);
 
         // Kiểm tra trang tiếp theo bằng pagination
-        const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;
+        const hasNextPage = true;
 
         return App.createPagedResults({
             results: manga,

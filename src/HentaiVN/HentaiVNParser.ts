@@ -414,7 +414,7 @@ export class Parser {
             if (slug && label) {
                 genreTags.push(
                     App.createTag({
-                        id: `genres=${slug}`,
+                        id: `${slug}`,
                         label: label,
                     })
                 );
