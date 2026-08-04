@@ -43,69 +43,6 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
     });
 };
 
-export const cdnSettings = (stateManager: SourceStateManager): DUINavigationButton => {
-    return App.createDUINavigationButton({
-        id: 'cdn_settings',
-        label: 'Cấu hình Server Ảnh (CDN)',
-        form: App.createDUIForm({
-            sections: async () => [
-                App.createDUISection({
-                    isHidden: false,
-                    id: 'cdn_section',
-                    rows: async () => [
-                        App.createDUISelect({
-                            id: 'cdnServer',
-                            label: 'Chọn Server tải ảnh',
-                            options: ['Mặc định (CDN 1)', 'Dự phòng (CDN 2)', 'Dự phòng (CDN 3)'],
-                            value: App.createDUIBinding({
-                                get: async () => {
-                                    const val = await getCdnServer(stateManager);
-                                    return [val];
-                                },
-                                set: async (value: string[]) => {
-                                    await stateManager.store('cdnServer', value[0] ?? DEFAULT_CDN_SERVER);
-                                },
-                            }),
-                            allowsMultiselect: false,
-                        }),
-                    ],
-                }),
-            ],
-        }),
-    });
-};
-
-export function testConnectionButton(stateManager: SourceStateManager): DUIButton {
-    return App.createDUIButton({
-        id: 'test_connection',
-        label: 'Kiểm tra kết nối Domain',
-        onTap: async () => {
-            const baseUrl = await getDomain(stateManager);
-            try {
-                const request = App.createRequest({
-                    url: baseUrl,
-                    method: 'GET',
-                });
-                const requestManager = App.createRequestManager({ requestsPerSecond: 1 });
-                const response = await requestManager.schedule(request, 1);
-
-                if (response.status === 200) {
-                    App.createDUISection({
-                        id: 'status',
-                        header: 'Kết nối thành công! (HTTP 200)',
-                        rows: async () => [],
-                        isHidden: false,
-                    });
-                } else {
-                    throw new Error(`Mã phản hồi: ${response.status}`);
-                }
-            } catch (error: any) {
-                throw new Error(`Không thể kết nối tới ${baseUrl}. Lỗi: ${error?.message ?? 'Chặn Cloudflare hoặc sai URL'}`);
-            }
-        },
-    });
-}
-
 export function resetSettings(stateManager: SourceStateManager): DUIButton {
     return App.createDUIButton({
         id: 'reset',

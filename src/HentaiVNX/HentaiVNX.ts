@@ -107,7 +107,7 @@ export class HentaiVNX implements SearchResultsProviding, MangaProviding, Chapte
         return App.createDUISection({
             id: 'main',
             header: 'Cài đặt Nguồn Truyện',
-            rows: async () => [domainSettings(this.stateManager), cdnSettings(this.stateManager), testConnectionButton(this.stateManager), resetSettings(this.stateManager)],
+            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
             isHidden: false,
         });
     }

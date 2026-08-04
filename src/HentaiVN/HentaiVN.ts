@@ -107,7 +107,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         return App.createDUISection({
             id: 'main',
             header: 'Cài đặt Nguồn Truyện',
-            rows: async () => [domainSettings(this.stateManager), cdnSettings(this.stateManager), testConnectionButton(this.stateManager), resetSettings(this.stateManager)],
+            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
             isHidden: false,
         });
     }
@@ -144,13 +144,6 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
             type: HomeSectionType.singleRowNormal,
         });
 
-        const badSection = App.createHomeSection({
-            id: 'bad',
-            title: 'Truyện Xem Ít Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
         const randomSection = App.createHomeSection({
             id: 'random',
             title: 'Truyện Ngẫu Nhiên',
@@ -164,7 +157,6 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         sectionCallback(randomSection);
         sectionCallback(hotSection);
         sectionCallback(oldSection);
-        sectionCallback(badSection);
 
         // 3. Xử lý bất đồng bộ độc lập (Trả về UI ngay khi từng request hoàn thành)
 
@@ -195,14 +187,8 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
             sectionCallback(oldSection);
         });
 
-        // Nguồn 5: Truyện xem ít nhất
-        const fetchBad = this.DOMHTML(`${baseUrl}/danh-sach?sort=least-viewed`).then(($bad) => {
-            badSection.items = this.parser.parseHotSection($bad);
-            sectionCallback(badSection);
-        });
-
         // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchOld, fetchBad]);
+        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchOld]);
     }
 
     async getSearchTags(): Promise<TagSection[]> {

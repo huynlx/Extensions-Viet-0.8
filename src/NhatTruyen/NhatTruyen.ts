@@ -103,103 +103,103 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
         return App.createDUISection({
             id: 'main',
             header: 'Cài đặt Nguồn Truyện',
-            rows: async () => [domainSettings(this.stateManager), cdnSettings(this.stateManager), testConnectionButton(this.stateManager), resetSettings(this.stateManager)],
+            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
             isHidden: false,
         });
     }
 
-async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
-    const baseUrl = await this.getBaseUrl();
+    async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
+        const baseUrl = await this.getBaseUrl();
 
-    // 1. Khởi tạo các Section
-    const featuredSection = App.createHomeSection({
-        id: 'featured',
-        title: 'Truyện Đề Cử',
-        containsMoreItems: false,
-        type: HomeSectionType.featured,
-    });
+        // 1. Khởi tạo các Section
+        const featuredSection = App.createHomeSection({
+            id: 'featured',
+            title: 'Truyện Đề Cử',
+            containsMoreItems: false,
+            type: HomeSectionType.featured,
+        });
 
-    const hotSection = App.createHomeSection({
-        id: 'hot',
-        title: 'Truyện Nổi Bật',
-        containsMoreItems: true,
-        type: HomeSectionType.singleRowNormal,
-    });
+        const hotSection = App.createHomeSection({
+            id: 'hot',
+            title: 'Truyện Nổi Bật',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
 
-    const newUpdatedSection = App.createHomeSection({
-        id: 'new_updated',
-        title: 'Truyện Mới Cập Nhật',
-        containsMoreItems: true,
-        type: HomeSectionType.singleRowNormal,
-    });
+        const newUpdatedSection = App.createHomeSection({
+            id: 'new_updated',
+            title: 'Truyện Mới Cập Nhật',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
 
-    const boysSection = App.createHomeSection({
-        id: 'boys',
-        title: 'Truyện Dành Cho Con Trai',
-        containsMoreItems: true,
-        type: HomeSectionType.singleRowNormal,
-    });
+        const boysSection = App.createHomeSection({
+            id: 'boys',
+            title: 'Truyện Dành Cho Con Trai',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
 
-    const girlsSection = App.createHomeSection({
-        id: 'girls',
-        title: 'Truyện Dành Cho Con Gái',
-        containsMoreItems: true,
-        type: HomeSectionType.singleRowNormal,
-    });
+        const girlsSection = App.createHomeSection({
+            id: 'girls',
+            title: 'Truyện Dành Cho Con Gái',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
 
-    const completedSection = App.createHomeSection({
-        id: 'completed',
-        title: 'Truyện Đã Hoàn Thành',
-        containsMoreItems: true,
-        type: HomeSectionType.singleRowNormal,
-    });
+        const completedSection = App.createHomeSection({
+            id: 'completed',
+            title: 'Truyện Đã Hoàn Thành',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
 
-    // 2. Callback khung rỗng trước để UI hiển thị skeleton loading
-    sectionCallback(featuredSection);
-    sectionCallback(newUpdatedSection);
-    sectionCallback(hotSection);
-    sectionCallback(boysSection);
-    sectionCallback(girlsSection);
-    sectionCallback(completedSection);
-
-    // 3. Tải và parse dữ liệu bất đồng bộ độc lập cho từng endpoint
-    
-    // Nguồn 1: Trang chủ (chứa cả Featured & New Updated)
-    const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
-        featuredSection.items = this.parser.parseFeaturedSection($home);
+        // 2. Callback khung rỗng trước để UI hiển thị skeleton loading
         sectionCallback(featuredSection);
-
-        newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
         sectionCallback(newUpdatedSection);
-    });
-
-    // Nguồn 2: Truyện hot
-    const fetchHot = this.DOMHTML(`${baseUrl}/truyen-tranh-hot`).then(($hot) => {
-        hotSection.items = this.parser.parseHotSection($hot);
         sectionCallback(hotSection);
-    });
-
-    // Nguồn 3: Truyện con trai
-    const fetchBoys = this.DOMHTML(`${baseUrl}/truyen-tranh-con-trai`).then(($boys) => {
-        boysSection.items = this.parser.parseSearchResults($boys);
         sectionCallback(boysSection);
-    });
-
-    // Nguồn 4: Truyện con gái
-    const fetchGirls = this.DOMHTML(`${baseUrl}/truyen-tranh-con-gai`).then(($girls) => {
-        girlsSection.items = this.parser.parseSearchResults($girls);
         sectionCallback(girlsSection);
-    });
-
-    // Nguồn 5: Truyện hoàn thành
-    const fetchCompleted = this.DOMHTML(`${baseUrl}/tim-truyen?status=2&sort=30`).then(($completed) => {
-        completedSection.items = this.parser.parseSearchResults($completed);
         sectionCallback(completedSection);
-    });
 
-    // Chờ tất cả request xử lý xong (thành công hoặc thất bại)
-    await Promise.allSettled([fetchHome, fetchHot, fetchBoys, fetchGirls, fetchCompleted]);
-}
+        // 3. Tải và parse dữ liệu bất đồng bộ độc lập cho từng endpoint
+
+        // Nguồn 1: Trang chủ (chứa cả Featured & New Updated)
+        const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
+            featuredSection.items = this.parser.parseFeaturedSection($home);
+            sectionCallback(featuredSection);
+
+            newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
+            sectionCallback(newUpdatedSection);
+        });
+
+        // Nguồn 2: Truyện hot
+        const fetchHot = this.DOMHTML(`${baseUrl}/truyen-tranh-hot`).then(($hot) => {
+            hotSection.items = this.parser.parseHotSection($hot);
+            sectionCallback(hotSection);
+        });
+
+        // Nguồn 3: Truyện con trai
+        const fetchBoys = this.DOMHTML(`${baseUrl}/truyen-tranh-con-trai`).then(($boys) => {
+            boysSection.items = this.parser.parseSearchResults($boys);
+            sectionCallback(boysSection);
+        });
+
+        // Nguồn 4: Truyện con gái
+        const fetchGirls = this.DOMHTML(`${baseUrl}/truyen-tranh-con-gai`).then(($girls) => {
+            girlsSection.items = this.parser.parseSearchResults($girls);
+            sectionCallback(girlsSection);
+        });
+
+        // Nguồn 5: Truyện hoàn thành
+        const fetchCompleted = this.DOMHTML(`${baseUrl}/tim-truyen?status=2&sort=30`).then(($completed) => {
+            completedSection.items = this.parser.parseSearchResults($completed);
+            sectionCallback(completedSection);
+        });
+
+        // Chờ tất cả request xử lý xong (thành công hoặc thất bại)
+        await Promise.allSettled([fetchHome, fetchHot, fetchBoys, fetchGirls, fetchCompleted]);
+    }
 
     async getSearchTags(): Promise<TagSection[]> {
         const baseUrl = await this.getBaseUrl();
