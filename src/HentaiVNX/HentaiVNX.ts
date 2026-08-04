@@ -178,7 +178,7 @@ export class HentaiVNX implements SearchResultsProviding, MangaProviding, Chapte
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}truyen-hentai/${mangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${mangaId}`);
         return this.parser.parseChapterList($);
     }
 
