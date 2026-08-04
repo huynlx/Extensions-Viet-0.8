@@ -21,7 +21,7 @@ import {
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { Parser } from './NhatTruyenParser';
-import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './NhatTruyenSetting';
+import { domainSettings, getDomain, resetSettings } from './NhatTruyenSetting';
 
 const DOMAIN = 'https://nhattruyenqq.com/';
 
@@ -35,10 +35,6 @@ export const NhatTruyenInfo: SourceInfo = {
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
-        {
-            text: 'Recommended',
-            type: BadgeColor.BLUE,
-        },
         {
             text: 'Vietnamese',
             type: BadgeColor.GREEN,

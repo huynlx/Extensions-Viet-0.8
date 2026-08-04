@@ -21,7 +21,7 @@ import {
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { Parser } from './HentaiVNXParser';
-import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './HentaiVNXSetting';
+import { domainSettings, getDomain, resetSettings } from './HentaiVNXSetting';
 
 const DOMAIN = 'https://www.hentaivnx.com/';
 

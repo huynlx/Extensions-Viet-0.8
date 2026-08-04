@@ -9,10 +9,6 @@ export const getDomain = async (stateManager: SourceStateManager): Promise<strin
     return ((await stateManager.retrieve('baseUrl')) as string) ?? DEFAULT_BASE_URL;
 };
 
-export const getCdnServer = async (stateManager: SourceStateManager): Promise<string> => {
-    return ((await stateManager.retrieve('cdnServer')) as string) ?? DEFAULT_CDN_SERVER;
-};
-
 // --- SETTING COMPONENTS ---
 
 export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {

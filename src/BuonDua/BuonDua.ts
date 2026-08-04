@@ -22,7 +22,7 @@ import {
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { Parser } from './BuonDuaParser';
-import { cdnSettings, domainSettings, getDomain, resetSettings, testConnectionButton } from './BuonDuaSetting';
+import { domainSettings, getDomain, resetSettings } from './BuonDuaSetting';
 
 const DOMAIN = 'https://buondua.com';
 
