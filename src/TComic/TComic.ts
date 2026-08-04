@@ -23,7 +23,7 @@ import { CheerioAPI } from 'cheerio';
 import { Parser } from './TComicParser';
 import { domainSettings, getDomain, resetSettings } from './TComicSetting';
 
-const DOMAIN = 'https://tcomicfanqq.com/';
+const DOMAIN = 'https://tcomicfanqq.com';
 
 export const TComicInfo: SourceInfo = {
     version: '1.0.1',
