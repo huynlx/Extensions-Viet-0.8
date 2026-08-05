@@ -28,51 +28,26 @@ const ENDPOINT_KEYS: Record<string, string> = {
 const MASTER_AES_KEY = 'sTUSpQjxBQIW3EdsadsauVEo6ZGmIEp6zxJgJV';
 const STATIC_SALT = 'iHbS0oIGYjVaLwvjynBpjQFtc5YCCGX6';
 
-// export function generateRequestId(endpoint: string, params: Record<string, any> = {}): string {
-//     const endpointKey = ENDPOINT_KEYS[endpoint] || '';
-
-//     // 1. Mốc thời gian Unix (ms) tại đầu giờ hiện tại
-//     const now = new Date();
-//     now.setMinutes(0, 0, 0);
-//     const startOfHourTimestamp = now.getTime();
-
-//     // 2. Chuyển giá trị sang String và sắp xếp key A-Z
-//     const sortedParams: Record<string, string> = {};
-//     Object.keys(params)
-//         .sort()
-//         .forEach((key) => {
-//             sortedParams[key] = String(params[key]);
-//         });
-
-//     // 3. Ghép payload
-//     const payload = `${endpointKey}-${endpoint}-${STATIC_SALT}-${startOfHourTimestamp}-${JSON.stringify(sortedParams)}`;
-
-//     // 4. Mã hóa AES
-//     return CryptoJS.AES.encrypt(payload, MASTER_AES_KEY).toString();
-// }
-
 export function generateRequestId(endpoint: string, params: Record<string, any> = {}): string {
     if (!endpoint) return '';
 
-    // 1. Loại bỏ domain và query string nếu có -> lấy relative path
+    // 1. Lấy relative path
     const rawEndpoint =
         String(endpoint)
             .replace(/^https?:\/\/[^\/]+/, '')
             .split('?')[0] ?? '';
 
-    // 2. Logic cắt số ID đúng chuẩn web gốc:
-    // /api/web/comic/chapters/1257815 -> /api/web/comic/chapters
-    // /api/web/comic/info/33917       -> /api/web/comic/info
-    const signEndpoint = rawEndpoint.replace(/\/\d+(?=\/|$)/g, '');
+    let signEndpoint = rawEndpoint;
 
-    // 3. Lấy endpointKey tương ứng từ bảng ENDPOINT_KEYS
-    let endpointKey = ENDPOINT_KEYS[signEndpoint];
-
-    // Fallback riêng cho slug chữ như /api/web/comic/genres/abo
-    if (!endpointKey && signEndpoint.startsWith('/api/web/comic/genres/')) {
-        endpointKey = ENDPOINT_KEYS['/api/web/comic/genres'];
+    // 2. Logic xử lý path:
+    // Nếu KHÔNG PHẢI là genres -> Cắt bỏ số ID ở cuối (/chapters/123 -> /chapters)
+    // Nếu LÀ genres -> Giữ nguyên path đầy đủ (/genres/action)
+    if (!rawEndpoint.includes('/api/web/comic/genres/')) {
+        signEndpoint = rawEndpoint.replace(/\/\d+(?=\/|$)/g, '');
     }
-    if (!endpointKey) endpointKey = '';
+
+    // 3. Tra bảng ENDPOINT_KEYS (genres/action không có trong bảng nên endpointKey = undefined)
+    const endpointKey = ENDPOINT_KEYS[signEndpoint];
 
     // 4. Mốc thời gian Unix (ms) tại đầu giờ hiện tại
     const now = new Date();
@@ -91,9 +66,25 @@ export function generateRequestId(endpoint: string, params: Record<string, any> 
             });
     }
 
-    // 6. Ghép payload với signEndpoint (đã cắt bỏ ID số)
+    // 6. Ghép payload (endpointKey = undefined sẽ tự biến thành chuỗi "undefined")
     const payload = `${endpointKey}-${signEndpoint}-${STATIC_SALT}-${startOfHourTimestamp}-${JSON.stringify(sortedParams)}`;
 
     // 7. Mã hóa AES
     return CryptoJS.AES.encrypt(payload, MASTER_AES_KEY).toString();
+}
+
+/**
+ * Giải mã chuỗi x-request-id (AES) về lại payload ban đầu để debug
+ */
+export function decryptRequestId(encryptedRequestId: string): string {
+    if (!encryptedRequestId) return '';
+
+    try {
+        const bytes = CryptoJS.AES.decrypt(encryptedRequestId, MASTER_AES_KEY);
+        const originalPayload = bytes.toString(CryptoJS.enc.Utf8);
+        return originalPayload;
+    } catch (error: any) {
+        console.error('❌ Giải mã Request ID thất bại:', error.message);
+        return '';
+    }
 }

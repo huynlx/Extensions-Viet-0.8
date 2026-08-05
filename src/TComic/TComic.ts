@@ -19,7 +19,7 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { generateRequestId } from './TComicCryptoUtils';
+import { decryptRequestId, generateRequestId } from './TComicCryptoUtils';
 import { buildCurlCommand, safeBuildQueryString } from './TComicHelper';
 import { Parser } from './TComicParser';
 import { domainSettings, getDomain, resetSettings } from './TComicSetting';
@@ -97,28 +97,15 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     /**
      * Helper gửi request API và tự động ký header x-request-id
      */
-    // async fetchAPI(endpoint: string, params: Record<string, any> = {}): Promise<any> {
-    //     const requestId = generateRequestId(endpoint, params);
-    //     const queryString = safeBuildQueryString(params);
-    //     const fullUrl = `${API_BASE_URL}${endpoint}${queryString}`;
-
-    //     const request = App.createRequest({
-    //         url: fullUrl,
-    //         method: 'GET',
-    //         headers: {
-    //             accept: 'application/json',
-    //             'x-request-id': requestId,
-    //         },
-    //     });
-
-    //     const response = await this.requestManager.schedule(request, 1);
-    //     return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-    // }
-
     async fetchAPI(endpoint: string, params: Record<string, any> = {}): Promise<any> {
-        console.log('💀 ⮕ TComic ⮕ fetchAPI ⮕ endpoint:', endpoint);
-
         const requestId = generateRequestId(endpoint, params);
+
+        // 解碼 (Decrypt) để kiểm tra lại
+        // const decryptedPayload = decryptRequestId(
+        //     'U2FsdGVkX18OvlRu7pkxdpp/gqDetFPpHhOV1rFfHNYHTEyYu9qN/MjMeqB2c55CtviVZUhpCfHyAG781wiyW7nQlDz4nj5tvGgG9g9eaC2t+XNw1CeYazok4vFTkUYYQjSsZmP6pPPZJ44QdvG8zxXXEnOBVoPDR/fcSPxWyUA='
+        // );
+        // console.log('🔓 Decrypted Payload:', decryptedPayload);
+
         const queryString = safeBuildQueryString(params);
         const fullUrl = `${API_BASE_URL}${endpoint}${queryString}`;
 
@@ -134,9 +121,9 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
         });
 
         // 🌐 IN LỆNH CURL OUT TERMINAL DÙNG ĐỂ TEST/DEBUG
-        console.log('\n--- 🚀 [cURL Request] ---');
-        console.log(buildCurlCommand(fullUrl, 'GET', headers));
-        console.log('-------------------------\n');
+        // console.log('\n--- 🚀 [cURL Request] ---');
+        // console.log(buildCurlCommand(fullUrl, 'GET', headers));
+        // console.log('-------------------------\n');
 
         const response = await this.requestManager.schedule(request, 1);
         if (!response || !response.data) return null; // 👈 Tránh crash nếu response null
