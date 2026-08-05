@@ -20,7 +20,7 @@ import {
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { generateRequestId } from './TComicCryptoUtils';
-import { safeBuildQueryString } from './TComicHelper';
+import { buildCurlCommand, safeBuildQueryString } from './TComicHelper';
 import { Parser } from './TComicParser';
 import { domainSettings, getDomain, resetSettings } from './TComicSetting';
 
@@ -65,7 +65,13 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     stateManager = App.createSourceStateManager();
     parser = new Parser();
 
-    constructor(private cheerio: CheerioAPI) {}
+    // 1. Thêm biến lưu trữ Promise cached tags
+    private tagsPromise?: Promise<TagSection[]>;
+
+    constructor(cheerio: CheerioAPI) {
+        // 2. Kích hoạt load tags ngay khi khởi tạo class
+        this.tagsPromise = this.getSearchTags();
+    }
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -91,21 +97,50 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     /**
      * Helper gửi request API và tự động ký header x-request-id
      */
+    // async fetchAPI(endpoint: string, params: Record<string, any> = {}): Promise<any> {
+    //     const requestId = generateRequestId(endpoint, params);
+    //     const queryString = safeBuildQueryString(params);
+    //     const fullUrl = `${API_BASE_URL}${endpoint}${queryString}`;
+
+    //     const request = App.createRequest({
+    //         url: fullUrl,
+    //         method: 'GET',
+    //         headers: {
+    //             accept: 'application/json',
+    //             'x-request-id': requestId,
+    //         },
+    //     });
+
+    //     const response = await this.requestManager.schedule(request, 1);
+    //     return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+    // }
+
     async fetchAPI(endpoint: string, params: Record<string, any> = {}): Promise<any> {
+        console.log('💀 ⮕ TComic ⮕ fetchAPI ⮕ endpoint:', endpoint);
+
         const requestId = generateRequestId(endpoint, params);
         const queryString = safeBuildQueryString(params);
         const fullUrl = `${API_BASE_URL}${endpoint}${queryString}`;
 
+        const headers = {
+            accept: 'application/json',
+            'x-request-id': requestId,
+        };
+
         const request = App.createRequest({
             url: fullUrl,
             method: 'GET',
-            headers: {
-                accept: 'application/json',
-                'x-request-id': requestId,
-            },
+            headers: headers,
         });
 
+        // 🌐 IN LỆNH CURL OUT TERMINAL DÙNG ĐỂ TEST/DEBUG
+        console.log('\n--- 🚀 [cURL Request] ---');
+        console.log(buildCurlCommand(fullUrl, 'GET', headers));
+        console.log('-------------------------\n');
+
         const response = await this.requestManager.schedule(request, 1);
+        if (!response || !response.data) return null; // 👈 Tránh crash nếu response null
+
         return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
     }
 
@@ -128,8 +163,18 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     }
 
     async getSearchTags(): Promise<TagSection[]> {
-        const json = await this.fetchAPI(TComicEndpoints.CATEGORIES);
-        return this.parser.parseTags(json ?? []);
+        // 3. Nếu đã có Promise đang chạy hoặc hoàn thành, reuse kết quả đó luôn
+        if (this.tagsPromise) {
+            return await this.tagsPromise;
+        }
+
+        // Tạo promise fetch API thật
+        this.tagsPromise = (async () => {
+            const json = await this.fetchAPI(TComicEndpoints.CATEGORIES);
+            return this.parser.parseTags(json ?? []);
+        })();
+
+        return await this.tagsPromise;
     }
 
     /**
@@ -289,6 +334,8 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
         const manga = this.parser.parseComicSection(json);
         const currentPage = Number(json.current_page) || page;
         const totalPages = Number(json.total_pages) || 0;
+        const comics = json.comics || [];
+
         const hasNextPage = totalPages > 0 ? currentPage < totalPages : manga.length >= limit;
 
         return App.createPagedResults({

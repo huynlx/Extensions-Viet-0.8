@@ -30,3 +30,22 @@ export function safeBuildQueryString(params?: Record<string, any>): string {
         return '';
     }
 }
+
+export function buildCurlCommand(url: string, method: string = 'GET', headers: Record<string, string> = {}, body?: any): string {
+    let curl = `curl -X ${method.toUpperCase()} "${url}"`;
+
+    // Thêm các Header
+    for (const [key, value] of Object.entries(headers)) {
+        if (value !== undefined && value !== null) {
+            curl += ` \\\n  -H "${key}: ${value}"`;
+        }
+    }
+
+    // Thêm Body (nếu là POST/PUT)
+    if (body) {
+        const payload = typeof body === 'object' ? JSON.stringify(body) : body;
+        curl += ` \\\n  --data-raw '${payload}'`;
+    }
+
+    return curl;
+}
