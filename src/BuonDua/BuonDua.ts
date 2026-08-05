@@ -307,12 +307,9 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         // Kiểm tra nút Next hoặc phân trang trong DOM Bulma (.pagination-next)
         const hasNextButton = $('.pagination-next').length > 0;
 
-        // Fallback: Kiểm tra nếu số lượng trả về đạt đủ 20 items/trang
-        const isNextAvailable = hasNextButton || manga.length >= 20;
-
         return App.createPagedResults({
             results: manga,
-            metadata: isNextAvailable ? { page: page + 1 } : undefined,
+            metadata: hasNextButton ? { page: page + 1 } : undefined,
         });
     }
 

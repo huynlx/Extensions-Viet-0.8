@@ -1,13 +1,15 @@
 import { DUIButton, DUINavigationButton, SourceStateManager } from '@paperback/types';
 
-const DEFAULT_BASE_URL = 'https://tcomicfanqq.com';
+const DEFAULT_BASE_URL = 'https://nettruyenviet10.com';
 
 // --- HELPERS RETRIEVE STATE ---
+
 export const getDomain = async (stateManager: SourceStateManager): Promise<string> => {
     return ((await stateManager.retrieve('baseUrl')) as string) ?? DEFAULT_BASE_URL;
 };
 
 // --- SETTING COMPONENTS ---
+
 export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {
     return App.createDUINavigationButton({
         id: 'domain_settings',

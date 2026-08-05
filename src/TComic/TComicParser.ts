@@ -1,128 +1,80 @@
 import { Chapter, PartialSourceManga, Tag, TagSection } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { decodeHTML } from 'entities';
-import { parse, format } from 'date-fns';
 
 export class Parser {
-    parseFeaturedSection($: CheerioAPI): PartialSourceManga[] {
+    parseFeaturedSection(jsonString: string): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        $('.items-slide .item').each((_, element) => {
-            const $item = $(element);
+        try {
+            const data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
 
-            // 1. Title & Link chính từ thẻ h3
-            const $titleLink = $item.find('.slide-caption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            // Cắt từ 35 items xuống 12 items
+            if (Array.isArray(data?.comics)) {
+                for (const comic of data.comics.slice(0, 12)) {
+                    const mangaId = comic.id || comic.slug || '';
+                    const title = comic.title?.trim() || '';
+                    const image = comic.thumbnail || '';
+                    const lastChapter = comic.last_chapter?.name || undefined;
 
-            // 2. Manga ID từ Href
-            const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
-            const mangaId = href.split('/truyen-tranh/').pop()?.split('/')[0]?.split('?')[0] ?? '';
-
-            // 3. Image (bỏ qua src placeholder, ưu tiên data-original -> data-retries)
-            const $img = $item.find('img').first();
-            let image = $img.attr('data-original') || $img.attr('data-retries') || $img.attr('src') || '';
-
-            if (image.startsWith('//')) {
-                image = `https:${image}`;
+                    if (mangaId && title) {
+                        mangaList.push(
+                            App.createPartialSourceManga({
+                                mangaId: mangaId,
+                                title: title,
+                                image: image,
+                                subtitle: lastChapter,
+                            })
+                        );
+                    }
+                }
             }
-
-            // 4. Chapter mới nhất (lấy thẻ <a> thứ hai trong .slide-caption)
-            const lastChapter = $item.find('.slide-caption a').last().text().trim();
-
-            if (mangaId && title && !mangaId.includes('javascript')) {
-                mangaList.push(
-                    App.createPartialSourceManga({
-                        mangaId: mangaId,
-                        title: title,
-                        image: image,
-                        subtitle: lastChapter || undefined,
-                    })
-                );
-            }
-        });
+        } catch (error) {
+            console.error('Lỗi parse JSON featured section:', error);
+        }
 
         return mangaList;
     }
 
-    parseNewUpdatedSection($: CheerioAPI): PartialSourceManga[] {
+    parseComicSection(jsonString: any): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        $('#ctl00_divCenter .items .row .item').each((_, element) => {
-            const $item = $(element);
+        try {
+            const data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
 
-            // 1. Title & Link chính từ figcaption h3 a
-            const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            if (Array.isArray(data?.comics)) {
+                for (const comic of data.comics) {
+                    const mangaId = comic.id || comic.slug || '';
+                    const title = comic.title?.trim() || '';
+                    const image = comic.thumbnail || '';
+                    const lastChapter = comic.last_chapter?.name || undefined;
 
-            // 2. Manga ID từ Href
-            const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
-            const mangaId = href.split('/truyen-tranh/').pop()?.split('/')[0]?.split('?')[0] ?? '';
-
-            // 3. Image (ưu tiên data-original -> data-retries -> src)
-            const $img = $item.find('.image img').first();
-            let image = $img.attr('data-original') || $img.attr('data-retries') || $img.attr('src') || '';
-
-            if (image.startsWith('//')) {
-                image = `https:${image}`;
+                    if (mangaId && title) {
+                        mangaList.push(
+                            App.createPartialSourceManga({
+                                mangaId: mangaId,
+                                title: title,
+                                image: image,
+                                subtitle: lastChapter,
+                            })
+                        );
+                    }
+                }
             }
-
-            // 4. Chapter mới nhất (lấy thẻ <a> chapter đầu tiên trong danh sách li.chapter)
-            const lastChapter = $item.find('ul li.chapter:first-child a').text().trim() || $item.find('.comic-item .chapter:first-child a').text().trim();
-
-            if (mangaId && title && !mangaId.includes('javascript')) {
-                mangaList.push(
-                    App.createPartialSourceManga({
-                        mangaId: mangaId,
-                        title: title,
-                        image: image,
-                        subtitle: lastChapter || undefined,
-                    })
-                );
-            }
-        });
+        } catch (error) {
+            console.error('Lỗi parse JSON comic section:', error);
+        }
 
         return mangaList;
     }
 
-    parseHotSection($: CheerioAPI): PartialSourceManga[] {
-        const mangaList: PartialSourceManga[] = [];
-
-        $('#ctl00_divCenter .items .row .item').each((_, element) => {
-            const $item = $(element);
-
-            // 1. Title & Link từ figcaption h3 a
-            const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
-
-            // 2. Manga ID từ Href
-            const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
-            const mangaId = href.split('/truyen-tranh/').pop()?.split('/')[0]?.split('?')[0] ?? '';
-
-            // 3. Image (ưu tiên data-original -> data-retries -> src)
-            const $img = $item.find('.image img').first();
-            let image = $img.attr('data-original') || $img.attr('data-retries') || $img.attr('src') || '';
-
-            if (image.startsWith('//')) {
-                image = `https:${image}`;
-            }
-
-            // 4. Chapter mới nhất
-            const lastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
-
-            if (mangaId && title && !mangaId.includes('javascript')) {
-                mangaList.push(
-                    App.createPartialSourceManga({
-                        mangaId: mangaId,
-                        title: title,
-                        image: image,
-                        subtitle: lastChapter || undefined,
-                    })
-                );
-            }
-        });
-
-        return mangaList;
-    }
+    // Alias tham chiếu trực tiếp
+    parseNewUpdatedSection = this.parseComicSection;
+    parseHotSection = this.parseComicSection;
+    parseCompletedSection = this.parseComicSection;
+    parseBoySection = this.parseComicSection;
+    parseGirlSection = this.parseComicSection;
+    parseNewSection = this.parseComicSection;
 
     // Parse danh sách truyện (Search, Homepage, ViewMore)
     parseSearchResults($: CheerioAPI): PartialSourceManga[] {
@@ -166,37 +118,55 @@ export class Parser {
     }
 
     // Parse thông tin chi tiết truyện
-    parseMangaDetails($: CheerioAPI, mangaId: string) {
-        const title = $('h1.title-detail').text().trim() || $('.title-detail').text().trim();
+    parseMangaDetails(jsonInput: any, mangaId: string): any {
+        const data = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
+        const item = data?.data || {};
 
-        let image = $('.detail-info img').attr('data-original') || $('.detail-info img').attr('src') || '';
-        if (image.startsWith('//')) image = `https:${image}`;
+        const title = item.title?.trim() || '';
+        const image = item.thumbnail || '';
+        const author = item.authors?.trim() || 'Đang cập nhật';
 
-        const description = $('.list-title + div').text().trim();
-        const author = $('.author .col-xs-8').text().trim() || 'Đang cập nhật';
-        const statusStr = $('.status .col-xs-8').text().trim();
+        // 1. Chuẩn hóa trạng thái: ONGOING -> Ongoing, các trường hợp khác -> Completed
+        const status = item.status === 'ONGOING' ? 'Ongoing' : 'Completed';
 
-        // Trạng thái: 'Completed' hoặc 'Ongoing'
-        const status = statusStr.includes('Hoàn thành') ? 'Completed' : 'Ongoing';
+        // 2. Làm sạch description (Lọc bỏ thẻ HTML như <p>, <em>, <strong>, <div>)
+        let rawDesc = item.description || '';
+        let description = rawDesc
+            .replace(/<[^>]*>/g, '') // Loại bỏ toàn bộ thẻ HTML
+            .trim();
 
+        // 3. Parse danh mục thể loại (genres)
         const arrayTags: Tag[] = [];
-        $('.kind .col-xs-8 a').each((_, element) => {
-            const label = $(element).text().trim();
-            const id = $(element).attr('href')?.split('/').pop() ?? '';
-            if (id && label) {
-                arrayTags.push(App.createTag({ id: id, label: label }));
+        if (Array.isArray(item.genres)) {
+            for (const genre of item.genres) {
+                const tagId = genre.id || genre.slug || '';
+                const tagLabel = genre.name || genre.title || '';
+                if (tagId && tagLabel) {
+                    arrayTags.push(App.createTag({ id: String(tagId), label: String(tagLabel) }));
+                }
             }
-        });
+        }
+
+        // 4. Lấy thêm tên gọi khác (nếu có)
+        const titles: string[] = [title];
+        if (Array.isArray(item.other_names)) {
+            for (const otherName of item.other_names) {
+                const trimmed = otherName?.trim();
+                if (trimmed && trimmed !== title) {
+                    titles.push(trimmed);
+                }
+            }
+        }
 
         return App.createSourceManga({
             id: mangaId,
             mangaInfo: App.createMangaInfo({
-                titles: [decodeHTML(title)],
+                titles: titles,
                 image: image,
                 status: status,
                 author: author,
                 artist: author,
-                desc: decodeHTML(description),
+                desc: description,
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: false,
             }),
@@ -207,22 +177,44 @@ export class Parser {
     parseChapterList(data: any[]): Chapter[] {
         const chapters: Chapter[] = [];
 
-        for (const item of data) {
-            // ID chapter có thể dùng chapter_id (dạng chuỗi) hoặc chapter_slug tuỳ theo cách bạn gọi API lấy ảnh chi tiết
-            //   { id: '523', name: 'Chapter 523', chapNum: 523, langCode: 'vi' }
+        if (!Array.isArray(data)) return chapters;
 
-            const formattedView = new Intl.NumberFormat('vi-VN').format(item.view);
+        for (let i = 0; i < data.length; i++) {
+            const item = data[i];
 
-            // Dùng thư viện ép kiểu chuỗi 'yyyy-MM-dd HH:mm:ss' sang 'dd/MM/yyyy'
-            const formattedTime = item.updated_at ? format(parse(item.updated_at, 'yyyy-MM-dd HH:mm:ss', new Date()), 'dd/MM/yyyy') : '';
+            // 1. Lấy ID chapter (Ưu tiên item.id, fallback slug_chapter)
+            const chapterId = item.id?.toString() || item.slug_chapter || '';
+            if (!chapterId) continue;
+
+            // 2. Lấy tên Chapter (VD: "Chapter 3")
+            const chapterName = item.name?.trim() || `Chapter ${data.length - i}`;
+
+            // 3. Tách số Chapter từ tên (VD: "Chapter 3.5" -> 3.5)
+            const chapNumMatch = chapterName.match(/chapter\s*([\d.]+)/i) || chapterName.match(/(\d+(\.\d+)?)/);
+            const chapNum = chapNumMatch ? parseFloat(chapNumMatch[1]) : data.length - i;
+
+            // 4. Lượt xem (view_count)
+            const viewCount = item.view_count ?? item.view ?? 0;
+            const formattedView = new Intl.NumberFormat('vi-VN').format(viewCount);
+
+            // 5. Thời gian tạo (created_at trong JSON là Epoch timestamp tính bằng ms)
+            const createdTimestamp = Number(item.created_at) || 0;
+            const dateObj = createdTimestamp > 0 ? new Date(createdTimestamp) : new Date();
+
+            // Định dạng ngày hiển thị (VD: 25/05/2026)
+            const formattedDate =
+                createdTimestamp > 0 ? `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}` : '';
+
+            // 6. Ghép thông tin hiển thị phụ
+            const groupInfo = formattedDate ? `${formattedDate} • ${formattedView} lượt xem` : `${formattedView} lượt xem`;
 
             chapters.push(
                 App.createChapter({
-                    id: item.chapter_num.toString(),
-                    name: item.chapter_name,
-                    chapNum: item.chapter_num,
-                    time: new Date(item.updated_at), // Khai báo thời gian cập nhật
-                    group: formattedTime + ' - ' + formattedView + ' lượt xem',
+                    id: chapterId,
+                    name: chapterName,
+                    chapNum: chapNum,
+                    time: dateObj,
+                    group: groupInfo,
                     langCode: '🇻🇳',
                 })
             );
@@ -232,74 +224,60 @@ export class Parser {
     }
 
     // Parse danh sách trang ảnh trong chapter
-    parseChapterDetails($: CheerioAPI): string[] {
+    parseChapterDetails(jsonInput: any): string[] {
         const pages: string[] = [];
 
-        $('.page-chapter img').each((_, element) => {
-            let pageUrl = $(element).attr('data-original') || $(element).attr('data-src') || $(element).attr('src') || '';
-            if (pageUrl.startsWith('//')) {
-                pageUrl = `https:${pageUrl}`;
+        try {
+            const data = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
+            const images = data?.data?.images;
+
+            if (Array.isArray(images)) {
+                for (const img of images) {
+                    let pageUrl = img.src?.trim() || '';
+
+                    if (pageUrl.startsWith('//')) {
+                        pageUrl = `https:${pageUrl}`;
+                    }
+
+                    // Chuyển https://s3.ap-southeast-1.wasabisys.com/imgcdn.tcomic.top/...
+                    // Thành https://imgcdn.tcomic.top/...
+                    if (pageUrl.includes('wasabisys.com/imgcdn.tcomic.top')) {
+                        pageUrl = pageUrl.replace(/^https?:\/\/s3\.ap-southeast-1\.wasabisys\.com\/imgcdn\.tcomic\.top/, 'https://imgcdn.tcomic.top');
+                    }
+
+                    if (pageUrl) {
+                        pages.push(pageUrl);
+                    }
+                }
             }
-            if (pageUrl && !pageUrl.includes('thumb-default')) {
-                pages.push(pageUrl);
-            }
-        });
+        } catch (error) {
+            console.error('Lỗi parse JSON chapter details:', error);
+        }
 
         return pages;
     }
 
     // Parse danh sách thể loại (Tags)
-    parseTags($: CheerioAPI): TagSection[] {
+    parseTags(jsonInput: any): TagSection[] {
         const genreTags: Tag[] = [];
-        const statusTags: Tag[] = [];
-        const sortTags: Tag[] = [];
 
-        // 1. Thể loại (Genres)
-        // Thêm tùy chọn "Tất cả" thủ công ở đầu danh sách với id quy ước là 'all'
-        genreTags.push(App.createTag({ id: 'all', label: 'Tất cả' }));
+        try {
+            const categories = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
 
-        $('#ctl00_divRight .genres ul.nav li a').each((_, element) => {
-            const label = decodeHTML($(element).text().trim());
-            const href = $(element).attr('href') || '';
-            const id = href.split('/tim-truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            if (Array.isArray(categories)) {
+                for (const item of categories) {
+                    const id = item.id?.toString() || '';
+                    const label = item.name?.trim() || '';
 
-            // Lọc bỏ các mục rỗng, trùng 'tim-truyen' hoặc nhãn 'Tất cả' để tránh lặp
-            if (id && label && id !== 'tim-truyen' && label.toLowerCase() !== 'tất cả') {
-                genreTags.push(App.createTag({ id: id, label: label }));
+                    if (id && label && id !== 'all') {
+                        genreTags.push(App.createTag({ id, label }));
+                    }
+                }
             }
-        });
-
-        // 2. Trạng thái (Status)
-        const statusOptions = [
-            { id: 'status=-1', label: 'Tất cả' },
-            { id: 'status=2', label: 'Hoàn thành' },
-            { id: 'status=1', label: 'Đang tiến hành' },
-        ];
-
-        for (const option of statusOptions) {
-            statusTags.push(App.createTag({ id: option.id, label: option.label }));
+        } catch (error) {
+            console.error('Lỗi parse JSON categories:', error);
         }
 
-        // 3. Xếp hạng (Sort Options)
-        const sortOptions = [
-            { id: 'sort=15', label: 'Truyện mới' },
-            { id: 'sort=10', label: 'Top all' },
-            { id: 'sort=11', label: 'Top tháng' },
-            { id: 'sort=12', label: 'Top tuần' },
-            { id: 'sort=13', label: 'Top ngày' },
-            { id: 'sort=20', label: 'Theo dõi nhiều' },
-            { id: 'sort=25', label: 'Bình luận nhiều' },
-            { id: 'sort=30', label: 'Số chapter' },
-        ];
-
-        for (const option of sortOptions) {
-            sortTags.push(App.createTag({ id: option.id, label: option.label }));
-        }
-
-        return [
-            App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }),
-            App.createTagSection({ id: 'status', label: 'Trạng thái', tags: statusTags }),
-            App.createTagSection({ id: 'sort', label: 'Xếp hạng', tags: sortTags }),
-        ];
+        return [App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags })];
     }
 }
