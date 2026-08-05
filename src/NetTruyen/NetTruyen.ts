@@ -303,7 +303,7 @@ export class NetTruyen implements SearchResultsProviding, MangaProviding, Chapte
                 parse: ($) => this.parser.parseHotSection($),
             },
             new_updated: {
-                url: `${baseUrl}?page=${page}`,
+                url: `${baseUrl}/truyen-tranh-moi?page=${page}`,
                 parse: ($) => this.parser.parseNewUpdatedSection($),
             },
             boys: {
