@@ -217,7 +217,7 @@ export class Parser {
             // Lấy data-id từ thẻ span con
             const id = $el.find('span.icon-checkbox').attr('data-id')?.trim();
 
-            // Clone node và remove span để chỉ lấy text thể loại (Action, Adventure,...)
+            // Clone node và remove span để chỉ lấy text thể loại
             const $clone = $el.clone();
             $clone.find('span').remove();
             const label = $clone.text().trim();
@@ -227,7 +227,31 @@ export class Parser {
             }
         });
 
-        // 2. Helper parse các select options (Country, Status, MinChapter, Sort)
+        // 2. Parse Danh mục Xếp Hạng từ .hidden_menu.book_tags phía dưới p.mega_menu chứa chữ "Xếp Hạng"
+        const arrayRankings: Tag[] = [];
+
+        $('p.mega_menu')
+            .filter((_, el) => $(el).text().includes('Xếp Hạng'))
+            .siblings('.hidden_menu.book_tags')
+            .find('.book_tags_content p a')
+            .each((_, el) => {
+                const label = $(el).text().trim();
+                const href = $(el).attr('href')?.trim();
+
+                // Lấy slug từ href (Ví dụ: "top-ngay" từ "https://truyenqqko.com/top-ngay")
+                const slug = href?.split('/').filter(Boolean).pop();
+
+                if (label && slug) {
+                    arrayRankings.push(
+                        App.createTag({
+                            id: `ranking.${slug}`,
+                            label: label,
+                        })
+                    );
+                }
+            });
+
+        // 3. Helper parse các select options (Country, Status, MinChapter, Sort)
         const parseSelectOptions = (selector: string, prefix: string): Tag[] => {
             const tags: Tag[] = [];
             $(selector)
@@ -259,21 +283,26 @@ export class Parser {
             }),
             App.createTagSection({
                 id: '1',
+                label: 'Xếp Hạng (Chỉ chọn 1)',
+                tags: arrayRankings,
+            }),
+            App.createTagSection({
+                id: '2',
                 label: 'Quốc Gia (Chỉ chọn 1)',
                 tags: parseSelectOptions('select#country', 'country'),
             }),
             App.createTagSection({
-                id: '2',
+                id: '3',
                 label: 'Tình Trạng (Chỉ chọn 1)',
                 tags: parseSelectOptions('select#status', 'status'),
             }),
             App.createTagSection({
-                id: '3',
+                id: '4',
                 label: 'Số Lượng Chương (Chỉ chọn 1)',
                 tags: parseSelectOptions('select#minchapter', 'minchapter'),
             }),
             App.createTagSection({
-                id: '4',
+                id: '5',
                 label: 'Sắp Xếp (Chỉ chọn 1)',
                 tags: parseSelectOptions('select#sort', 'sort'),
             }),

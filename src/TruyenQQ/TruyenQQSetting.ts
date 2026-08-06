@@ -1,6 +1,6 @@
 import { DUIButton, DUINavigationButton, SourceStateManager } from '@paperback/types';
 
-const DEFAULT_BASE_URL = 'https://truyenqqko.com/';
+const DEFAULT_BASE_URL = 'https://truyenqqko.com';
 
 // --- HELPERS RETRIEVE STATE ---
 export const getDomain = async (stateManager: SourceStateManager): Promise<string> => {

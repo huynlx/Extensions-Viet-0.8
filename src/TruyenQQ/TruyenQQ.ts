@@ -22,8 +22,9 @@ import {
 
 import { CheerioAPI } from 'cheerio';
 import { isLastPage, Parser } from './TruyenQQParser';
+import { getDomain } from './TruyenQQSetting';
 
-const DOMAIN = 'https://truyenqqko.com/';
+const DEFAULT_DOMAIN = 'https://truyenqqko.com';
 
 export const TruyenQQInfo: SourceInfo = {
     version: '1.0.0',
@@ -33,7 +34,7 @@ export const TruyenQQInfo: SourceInfo = {
     authorWebsite: 'https://github.com/huynlx/',
     description: 'Extension that pulls manga from TruyenQQ.',
     contentRating: ContentRating.EVERYONE,
-    websiteBaseURL: DOMAIN,
+    websiteBaseURL: DEFAULT_DOMAIN,
     sourceTags: [
         {
             text: 'Vietnamese',
@@ -44,19 +45,28 @@ export const TruyenQQInfo: SourceInfo = {
 };
 
 export class TruyenQQ implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+    stateManager = App.createSourceStateManager();
+    parser = new Parser();
+
     constructor(private cheerio: CheerioAPI) {}
+
+    // Lấy domain động từ setting và chuẩn hóa bỏ dấu '/' ở cuối
+    private async getBaseUrl(): Promise<string> {
+        const domain = await getDomain(this.stateManager);
+        return domain.replace(/\/+$/, '');
+    }
 
     readonly requestManager = App.createRequestManager({
         requestsPerSecond: 2,
         requestTimeout: 50000,
         interceptor: {
             interceptRequest: async (request: Request): Promise<Request> => {
+                const baseUrl = await this.getBaseUrl();
                 request.headers = {
                     ...(request.headers ?? {}),
                     ...{
-                        referer: DOMAIN,
+                        referer: `${baseUrl}/`,
                         'user-agent': await this.requestManager.getDefaultUserAgent(),
-                        // 'user-agent': 'a',
                     },
                 };
                 return request;
@@ -67,11 +77,10 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
         },
     });
 
-    getMangaShareUrl(mangaId: string): string {
-        return `${DOMAIN}truyen-tranh/${mangaId}`;
+    async getMangaShareUrl(mangaId: string): Promise<string> {
+        const baseUrl = await this.getBaseUrl();
+        return `${baseUrl}/truyen-tranh/${mangaId}`;
     }
-
-    parser = new Parser();
 
     private async DOMHTML(url: string): Promise<CheerioAPI> {
         const request = App.createRequest({
@@ -79,17 +88,20 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, 1);
-        this.CloudFlareError(response.status);
+        await this.CloudFlareError(response.status);
         return this.cheerio.load(response.data as string);
     }
 
     async getSearchTags(): Promise<TagSection[]> {
-        const url = `${DOMAIN}tim-kiem-nang-cao`;
+        const baseUrl = await this.getBaseUrl();
+        const url = `${baseUrl}/tim-kiem-nang-cao`;
         const $ = await this.DOMHTML(url);
         return this.parser.parseTags($);
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
+        const baseUrl = await this.getBaseUrl();
+
         // 1. Khởi tạo danh sách Sections
         const sections: HomeSection[] = [
             App.createHomeSection({ id: 'featured', title: 'Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.featured }),
@@ -102,12 +114,12 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
 
         // Map URL tương ứng cho từng Section ID
         const urlMap: Record<string, string> = {
-            featured: `${DOMAIN}doc-truyen`,
-            hot: `${DOMAIN}doc-truyen`,
-            new_updated: `${DOMAIN}truyen-moi-cap-nhat`,
-            favorite: `${DOMAIN}truyen-yeu-thich`,
-            new_added: `${DOMAIN}truyen-tranh-moi`,
-            full: `${DOMAIN}truyen-hoan-thanh`,
+            featured: `${baseUrl}/doc-truyen`,
+            hot: `${baseUrl}/doc-truyen`,
+            new_updated: `${baseUrl}/truyen-moi-cap-nhat`,
+            favorite: `${baseUrl}/truyen-yeu-thich`,
+            new_added: `${baseUrl}/truyen-tranh-moi`,
+            full: `${baseUrl}/truyen-hoan-thanh`,
         };
 
         // 2. Emit tất cả section rỗng ngay lập tức để UI dựng Skeleton Layout
@@ -116,13 +128,11 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
         }
 
         // 3. Request song song toàn bộ các section
-        // Khai báo parser map bên ngoài hoặc ở đầu class/method
         const sectionParsers: Record<string, ($: CheerioAPI) => PartialSourceManga[]> = {
             featured: ($) => this.parser.parseFeaturedSection($),
             hot: ($) => this.parser.parseHotSection($),
         };
 
-        // Viết lại hàm fetchPromises
         const fetchPromises = sections.map(async (section) => {
             const url = urlMap[section.id];
             if (!url) return;
@@ -130,33 +140,33 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             try {
                 const $ = await this.DOMHTML(url);
 
-                // Lấy hàm parse tương ứng từ map, nếu không có thì fallback về parseSearchResults
                 const parseFn = sectionParsers[section.id] ?? (($) => this.parser.parseSearchResults($));
                 section.items = parseFn($);
 
-                // Emit dữ liệu ngay khi hoàn thành section
                 sectionCallback(section);
             } catch (error) {
                 console.error(`Failed to load section [${section.id}]:`, error);
             }
         });
 
-        // Chờ toàn bộ requests hoàn tất
         await Promise.allSettled(fetchPromises);
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const $ = await this.DOMHTML(`${DOMAIN}truyen-tranh/${mangaId}`);
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const $ = await this.DOMHTML(`${DOMAIN}truyen-tranh/${mangaId}`);
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
         return this.parser.parseChapterList($);
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const $ = await this.DOMHTML(`${DOMAIN}truyen-tranh/${chapterId}`);
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${chapterId}`);
         const pages = this.parser.parseChapterDetails($);
         return App.createChapterDetails({
             id: chapterId,
@@ -170,6 +180,7 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
     }
 
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
+        const baseUrl = await this.getBaseUrl();
         const page = metadata?.page ?? 1;
 
         const search = {
@@ -181,6 +192,9 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             sort: '0',
         };
 
+        let rankingPath: string | undefined;
+
+        // 1. Xử lý Excluded Tags
         const extags = query.excludedTags?.map((tag) => tag.id) ?? [];
         const exgenres: string[] = [];
         for (const value of extags) {
@@ -189,6 +203,7 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             }
         }
 
+        // 2. Xử lý Included Tags
         const tags = query.includedTags?.map((tag) => tag.id) ?? [];
         const genres: string[] = [];
         for (const value of tags) {
@@ -197,6 +212,9 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             } else {
                 const [key, val] = value.split('.');
                 switch (key) {
+                    case 'ranking':
+                        rankingPath = val;
+                        break;
                     case 'minchapter':
                         search.minchapter = String(val);
                         break;
@@ -212,14 +230,23 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
                 }
             }
         }
+
         search.genres = genres.join(',');
         search.exgenres = exgenres.join(',');
-        const paramExgenres = search.exgenres ? `&notcategory==${search.exgenres}` : '';
 
-        const url = `${DOMAIN}${query.title ? 'tim-kiem' : 'tim-kiem-nang-cao'}/trang-${page}`;
-        const param =
-            `?q=${query.title?.replaceAll(' ', '%20') ?? ''}` +
-            encodeURI(`&category=${search.genres}${paramExgenres}&country=${search.country}&status=${search.status}&minchapter=${search.minchapter}&sort=${search.sort}`);
+        let url = '';
+        let param = '';
+
+        if (rankingPath) {
+            url = `${baseUrl}/${rankingPath}/trang-${page}`;
+        } else {
+            const paramExgenres = search.exgenres ? `&notcategory=${search.exgenres}` : '';
+            url = `${baseUrl}/${query.title ? 'tim-kiem' : 'tim-kiem-nang-cao'}/trang-${page}`;
+            param =
+                `?q=${encodeURIComponent(query.title ?? '')}` +
+                `&category=${search.genres}${paramExgenres}&country=${search.country}&status=${search.status}&minchapter=${search.minchapter}&sort=${search.sort}`;
+        }
+
         console.log('Search URL:', url + param);
         const $ = await this.DOMHTML(url + param);
         const tiles = this.parser.parseSearchResults($);
@@ -232,6 +259,7 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
     }
 
     async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
+        const baseUrl = await this.getBaseUrl();
         const page: number = metadata?.page ?? 1;
         let param = '';
         let url = '';
@@ -239,19 +267,19 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
         switch (homepageSectionId) {
             case 'favorite':
                 param = `trang-${page}`;
-                url = `${DOMAIN}truyen-yeu-thich/`;
+                url = `${baseUrl}/truyen-yeu-thich/`;
                 break;
             case 'new_updated':
                 param = `trang-${page}`;
-                url = `${DOMAIN}truyen-moi-cap-nhat/`;
+                url = `${baseUrl}/truyen-moi-cap-nhat/`;
                 break;
             case 'new_added':
                 param = `trang-${page}`;
-                url = `${DOMAIN}truyen-tranh-moi/`;
+                url = `${baseUrl}/truyen-tranh-moi/`;
                 break;
             case 'full':
                 param = `trang-${page}?status=2`;
-                url = `${DOMAIN}truyen-hoan-thanh/`;
+                url = `${baseUrl}/truyen-hoan-thanh/`;
                 break;
             default:
                 throw new Error("Requested to getViewMoreItems for a section ID which doesn't exist");
@@ -275,19 +303,21 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
         });
     }
 
-    CloudFlareError(status: number): void {
-        if (status == 503 || status == 403) {
-            throw new Error(`CLOUDFLARE BYPASS ERROR:\nPlease go to home page ${TruyenQQ.name} source and press the cloud icon.`);
+    async CloudFlareError(status: number): Promise<void> {
+        if (status === 503 || status === 403) {
+            const baseUrl = await this.getBaseUrl();
+            throw new Error(`CLOUDFLARE BYPASS ERROR:\nPlease go to home page ${TruyenQQ.name} source (${baseUrl}) and press the cloud icon.`);
         }
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
+        const baseUrl = await this.getBaseUrl();
         return App.createRequest({
-            url: DOMAIN,
+            url: `${baseUrl}/`,
             method: 'GET',
             headers: {
-                referer: `${DOMAIN}/`,
-                origin: `${DOMAIN}/`,
+                referer: `${baseUrl}/`,
+                origin: `${baseUrl}/`,
                 'user-agent': await this.requestManager.getDefaultUserAgent(),
             },
         });
