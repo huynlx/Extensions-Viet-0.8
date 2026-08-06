@@ -37,12 +37,8 @@ export const BuonDuaInfo: SourceInfo = {
     websiteBaseURL: DOMAIN,
     sourceTags: [
         {
-            text: 'Adult',
+            text: 'NSFW ',
             type: BadgeColor.RED,
-        },
-        {
-            text: 'Vietnamese',
-            type: BadgeColor.GREEN,
         },
         {
             text: '18+',
