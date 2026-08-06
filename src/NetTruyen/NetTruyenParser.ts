@@ -172,11 +172,29 @@ export class Parser {
         let image = $('.detail-info img').attr('data-original') || $('.detail-info img').attr('src') || '';
         if (image.startsWith('//')) image = `https:${image}`;
 
-        const description = $('.list-title + div').text().trim();
+        // 🛠️ XỬ LÝ LẤY MÔ TẢ GIỮ NGUYÊN TỪNG ĐOẠN VĂN
+        const $descEl = $('.list-title + div, .detail-content').first().clone();
+
+        // 1. Chuyển thẻ <br> thành ký tự \n
+        $descEl.find('br').replaceWith('\n');
+
+        // 2. Chèn \n vào cuối mỗi thẻ div/p con để ép Cheerio tách dòng
+        $descEl.find('div, p').each((_, el) => {
+            $(el).append('\n');
+        });
+
+        // 3. Tách từng dòng, làm sạch khoảng trắng và ghép lại
+        // Dùng .join('\n\n') để tạo khoảng cách đoạn văn đẹp trên Paperback
+        // (Nếu muốn các dòng sát nhau hơn, bạn đổi .join('\n\n') thành .join('\n'))
+        const description = $descEl
+            .text()
+            .split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0)
+            .join('\n\n');
+
         const author = $('.author .col-xs-8').text().trim() || 'Đang cập nhật';
         const statusStr = $('.status .col-xs-8').text().trim();
-
-        // Trạng thái: 'Completed' hoặc 'Ongoing'
         const status = statusStr.includes('Hoàn thành') ? 'Completed' : 'Ongoing';
 
         const arrayTags: Tag[] = [];
@@ -196,7 +214,7 @@ export class Parser {
                 status: status,
                 author: author,
                 artist: author,
-                desc: decodeHTML(description),
+                desc: description,
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: false,
             }),

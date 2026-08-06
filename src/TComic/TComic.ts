@@ -22,7 +22,7 @@ import { CheerioAPI } from 'cheerio';
 import { generateRequestId } from './TComicCryptoUtils';
 import { Parser } from './TComicParser';
 import { domainSettings, getDomain, resetSettings } from './TComicSetting';
-import { safeBuildQueryString } from '../common';
+import { safeBuildQueryString } from '../../common';
 
 const DOMAIN = 'https://tcomicfanqq.com';
 const API_BASE_URL = 'https://api.tcomicfanqq.com';
