@@ -44,7 +44,7 @@ enum TComicEndpoints {
 }
 
 export const TComicInfo: SourceInfo = {
-    version: '1.0.2',
+    version: '1.0.0',
     name: 'TComic',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
