@@ -4,6 +4,7 @@ import {
     ChapterDetails,
     ChapterProviding,
     ContentRating,
+    DUISection,
     HomePageSectionsProviding,
     HomeSection,
     HomeSectionType,
@@ -22,7 +23,7 @@ import {
 
 import { CheerioAPI } from 'cheerio';
 import { isLastPage, Parser } from './TruyenQQParser';
-import { getDomain } from './TruyenQQSetting';
+import { domainSettings, getDomain, resetSettings } from './TruyenQQSetting';
 
 const DEFAULT_DOMAIN = 'https://truyenqqko.com';
 
@@ -38,10 +39,10 @@ export const TruyenQQInfo: SourceInfo = {
     sourceTags: [
         {
             text: 'Vietnamese',
-            type: BadgeColor.BLUE,
+            type: BadgeColor.GREEN,
         },
     ],
-    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
+    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
 export class TruyenQQ implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
@@ -320,6 +321,15 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
                 origin: `${baseUrl}/`,
                 'user-agent': await this.requestManager.getDefaultUserAgent(),
             },
+        });
+    }
+
+    async getSourceMenu(): Promise<DUISection> {
+        return App.createDUISection({
+            id: 'main',
+            header: 'Cài đặt Nguồn Truyện',
+            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
+            isHidden: false,
         });
     }
 }
