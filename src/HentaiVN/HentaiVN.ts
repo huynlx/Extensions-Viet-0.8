@@ -26,7 +26,7 @@ import { domainSettings, getDomain, resetSettings } from './HentaiVNSetting';
 const DOMAIN = 'https://hentaivnreal.com';
 
 export const HentaiVNInfo: SourceInfo = {
-    version: '1.0.1',
+    version: '1.0.0',
     name: 'HentaiVN',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',

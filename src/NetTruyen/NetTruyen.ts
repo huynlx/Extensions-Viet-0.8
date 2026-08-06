@@ -26,7 +26,7 @@ import { domainSettings, getDomain, resetSettings } from './NetTruyenSetting';
 const DOMAIN = 'https://nettruyenviet10.com';
 
 export const NetTruyenInfo: SourceInfo = {
-    version: '1.0.1',
+    version: '1.0.0',
     name: 'NetTruyen',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',

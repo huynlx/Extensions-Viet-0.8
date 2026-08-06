@@ -222,7 +222,7 @@ export class Parser {
                     name: item.chapter_name,
                     chapNum: item.chapter_num,
                     time: new Date(item.updated_at), // Khai báo thời gian cập nhật
-                    group: formattedTime + ' - ' + formattedView + ' lượt xem',
+                    group: formattedTime + ' • ' + formattedView + ' lượt xem',
                     langCode: '🇻🇳',
                 })
             );
@@ -237,10 +237,13 @@ export class Parser {
 
         $('.page-chapter img').each((_, element) => {
             let pageUrl = $(element).attr('data-original') || $(element).attr('data-src') || $(element).attr('src') || '';
+
             if (pageUrl.startsWith('//')) {
                 pageUrl = `https:${pageUrl}`;
             }
-            if (pageUrl && !pageUrl.includes('thumb-default')) {
+
+            // Lọc bỏ ảnh rỗng, thumb-default và ảnh logo/watermark nettruyenviet
+            if (pageUrl && !pageUrl.includes('thumb-default') && !pageUrl.includes('nettruyenviet.webp')) {
                 pages.push(pageUrl);
             }
         });

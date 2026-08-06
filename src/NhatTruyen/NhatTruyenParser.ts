@@ -222,7 +222,7 @@ export class Parser {
                     name: item.chapter_name,
                     chapNum: item.chapter_num,
                     time: new Date(item.updated_at), // Khai báo thời gian cập nhật
-                    group: formattedTime + ' - ' + formattedView + ' lượt xem',
+                    group: formattedTime + ' • ' + formattedView + ' lượt xem',
                     langCode: '🇻🇳',
                 })
             );

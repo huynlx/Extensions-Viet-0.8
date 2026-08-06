@@ -27,7 +27,7 @@ import { domainSettings, getDomain, resetSettings } from './BuonDuaSetting';
 const DOMAIN = 'https://buondua.com';
 
 export const BuonDuaInfo: SourceInfo = {
-    version: '1.0.1',
+    version: '1.0.0',
     name: 'Buon Dua',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
