@@ -175,6 +175,9 @@ export class Parser {
         // 🛠️ XỬ LÝ LẤY MÔ TẢ GIỮ NGUYÊN TỪNG ĐOẠN VĂN
         const $descEl = $('.list-title + div, .detail-content').first().clone();
 
+        // ❌ LOẠI BỎ THẺ H2, TIÊU ĐỀ RÁC VÀ THẺ "Xem thêm"
+        $descEl.find('h2, .list-title, a.morelink, .morelink').remove();
+
         // 1. Chuyển thẻ <br> thành ký tự \n
         $descEl.find('br').replaceWith('\n');
 
@@ -184,8 +187,6 @@ export class Parser {
         });
 
         // 3. Tách từng dòng, làm sạch khoảng trắng và ghép lại
-        // Dùng .join('\n\n') để tạo khoảng cách đoạn văn đẹp trên Paperback
-        // (Nếu muốn các dòng sát nhau hơn, bạn đổi .join('\n\n') thành .join('\n'))
         const description = $descEl
             .text()
             .split('\n')
