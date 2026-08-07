@@ -128,22 +128,22 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         sections.forEach(sectionCallback);
 
         // 3. Xử lý bất đồng bộ độc lập
+
+        // Nguồn 1: Trang chủ (chứa Featured, Random & Hot/Trending)
         const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
             featuredSection.items = this.parser.parseFeaturedSection($home);
             sectionCallback(featuredSection);
 
             randomSection.items = this.parser.parseRandomSection($home);
             sectionCallback(randomSection);
+
+            hotSection.items = this.parser.parseHotSection($home);
+            sectionCallback(hotSection);
         });
 
         const fetchNewUpdated = this.DOMHTML(`${baseUrl}/read`).then(($newUpdated) => {
             newUpdatedSection.items = this.parser.parseNewUpdatedSection($newUpdated);
             sectionCallback(newUpdatedSection);
-        });
-
-        const fetchHot = this.DOMHTML(baseUrl).then(($hot) => {
-            hotSection.items = this.parser.parseHotSection($hot);
-            sectionCallback(hotSection);
         });
 
         const fetchView = this.DOMHTML(`${baseUrl}/read/page/1/?m_orderby=views`).then(($view) => {
@@ -161,7 +161,7 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(doneSection);
         });
 
-        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchView, fetchNew, fetchDone]);
+        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchView, fetchNew, fetchDone]);
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {

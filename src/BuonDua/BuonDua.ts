@@ -139,11 +139,15 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         sectionCallback(hotSection);
         sectionCallback(mayLikeSection);
 
-        // 3. Xử lý bất đồng bộ độc lập (Trả về UI ngay khi từng request hoàn thành
-        // Nguồn 1: Truyện mới nhất
-        const fetchNewUpdated = this.DOMHTML(`${baseUrl}`).then(($newUpdated) => {
-            newUpdatedSection.items = this.parser.parseNewUpdatedSection($newUpdated);
+        // 3. Xử lý bất đồng bộ độc lập
+
+        // Nguồn 1: Trang chủ (dùng chung cho Mới Nhất & Bạn Có Thể Thích)
+        const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
+            newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
             sectionCallback(newUpdatedSection);
+
+            mayLikeSection.items = this.parser.parseMayLikeSection($home);
+            sectionCallback(mayLikeSection);
         });
 
         // Nguồn 2: Truyện xem nhiều nhất
@@ -152,14 +156,8 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
             sectionCallback(hotSection);
         });
 
-        // Nguồn 3: Truyện bạn có thể thích (Lấy từ trang chủ)
-        const fetchMayLike = this.DOMHTML(`${baseUrl}`).then(($mayLike) => {
-            mayLikeSection.items = this.parser.parseMayLikeSection($mayLike);
-            sectionCallback(mayLikeSection);
-        });
-
         // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchNewUpdated, fetchHot, fetchMayLike]);
+        await Promise.allSettled([fetchHome, fetchHot]);
     }
 
     async getSearchTags(): Promise<TagSection[]> {
@@ -168,25 +166,41 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         return this.parser.parseTags($);
     }
 
-    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+    // 1. Thêm Map cache vào class
+    private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
+
+    // 2. Helper fetch HTML dùng chung có caching
+    private async fetchMangaPage(realMangaId: string): Promise<CheerioAPI> {
+        const now = Date.now();
+        const cached = this.pageCache.get(realMangaId);
+
+        // Giữ cache trong 10 giây để phục vụ các hàm gọi song song
+        if (cached && now - cached.timestamp < 10000) {
+            return cached.promise;
+        }
+
         const baseUrl = await this.getBaseUrl();
+        const promise = this.DOMHTML(`${baseUrl}/${realMangaId}`);
 
-        // Tách lấy ID thực sự từ composite ID (Ví dụ: "slug-55851|https%3A%2F%2F...")
-        const [realMangaId] = mangaId.split('|');
+        this.pageCache.set(realMangaId, { promise, timestamp: now });
+        return promise;
+    }
 
-        const $ = await this.DOMHTML(`${baseUrl}/${realMangaId}`);
+    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        // Sửa TS2345: Thêm '?? ""' để đảm bảo kiều dữ liệu luôn là string
+        const realMangaId = mangaId.split('|')[0] ?? '';
+
+        const $ = await this.fetchMangaPage(realMangaId);
 
         // Đưa cả composite mangaId ban đầu vào parser để giữ nguyên ID cho App
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const baseUrl = await this.getBaseUrl();
+        // Sửa TS2345: Thêm '?? ""' để đảm bảo kiểu dữ liệu luôn là string
+        const realMangaId = mangaId.split('|')[0] ?? '';
 
-        // Tách lấy ID thực sự để fetch HTML trang đầu tiên
-        const [realMangaId] = mangaId.split('|');
-
-        const $ = await this.DOMHTML(`${baseUrl}/${realMangaId}`);
+        const $ = await this.fetchMangaPage(realMangaId);
         return this.parser.parseChapterList($);
     }
 

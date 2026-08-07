@@ -1,4 +1,4 @@
-import { Chapter, PartialSourceManga, Tag, TagSection } from '@paperback/types';
+import { Chapter, PartialSourceManga, SourceManga, Tag, TagSection } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { decodeHTML } from 'entities';
 
@@ -33,7 +33,7 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
                         subtitle: lastChapter || undefined,
                     })
@@ -46,40 +46,53 @@ export class Parser {
 
     parseNewUpdatedSection($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
+        const addedMangaIds = new Set<string>();
 
-        $('.item-list li.item').each((_, element) => {
-            const $item = $(element);
+        // Chỉ lấy các slide chính, bỏ qua các slide clone của Glide.js
+        $('.glide__slide:not(.glide__slide--clone) .manga-vertical, .manga-vertical').each((_, element) => {
+            const item = $(element);
 
-            // 1. Title & Link chính từ thẻ <a> trong .box-description p
-            const $titleLink = $item.find('.box-description p a').first();
-            const title = $titleLink.text().trim();
+            // 1. Link & Manga ID
+            const mangaLink = item.find('a[href^="/truyen/"]').first();
+            const href = mangaLink.attr('href') ?? '';
+            const mangaId = href.match(/^\/truyen\/([^/?]+)/)?.[1] ?? '';
 
-            // 2. Manga ID từ href (lấy slug sau /truyen/)
-            const href = $titleLink.attr('href') || $item.find('.box-cover a').attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            // Bỏ qua nếu không có ID hoặc đã được thêm trước đó
+            if (!mangaId || addedMangaIds.has(mangaId)) return;
 
-            // 3. Image URL từ thẻ img.img-list
-            const $img = $item.find('.box-cover img').first();
-            let image = $img.attr('src') || $img.attr('data-src') || '';
+            // 2. Title
+            const title = item.find('.p-2 a.text-ellipsis').text().trim() || item.find('.p-2 a').text().trim();
 
-            if (image.startsWith('//')) {
-                image = `https:${image}`;
+            // 3. Cover Image (Ưu tiên data-bg, fallback sang trích xuất URL từ style background-image)
+            const $cover = item.find('.cover').first();
+            let cover = $cover.attr('data-bg') || '';
+
+            if (!cover) {
+                const styleAttr = $cover.attr('style') || '';
+                const bgMatch = styleAttr.match(/url\(["']?(.*?)["']?\)/);
+                if (bgMatch && bgMatch[1]) {
+                    cover = bgMatch[1];
+                }
             }
 
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
-            const fullTitleText = $item.find('.box-description p').first().text().trim();
-            const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
-            const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
+            // Chuẩn hóa đường dẫn tương đối hoặc thiếu protocol
+            if (cover.startsWith('//')) {
+                cover = `https:${cover}`;
+            }
 
-            if (mangaId && title && !mangaId.includes('javascript')) {
+            // 4. Subtitle (Ví dụ: "Chap 2", "Chapter 36")
+            const subtitle = item.find('.latest-chapter .text-ellipsis').first().text().trim() || undefined;
+
+            if (title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
                         title: decodeHTML(title),
-                        image: image,
-                        subtitle: lastChapter,
+                        image: cover,
+                        subtitle: subtitle,
                     })
                 );
+                addedMangaIds.add(mangaId);
             }
         });
 
@@ -127,7 +140,7 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
                         subtitle: subtitle,
                     })
@@ -166,7 +179,7 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
                         subtitle: lastChapter,
                     })
@@ -219,7 +232,7 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
                         subtitle: lastChapter,
                     })
@@ -231,42 +244,53 @@ export class Parser {
     }
 
     // Parse thông tin chi tiết truyện
-    parseMangaDetails($: CheerioAPI, mangaId: string) {
-        const $pageInfo = $('.page-info').first();
-
+    parseMangaDetails($: CheerioAPI, mangaId: string): SourceManga {
         // 1. Tiêu đề
-        const title = $pageInfo.find('h1[itemprop="name"]').text().trim();
+        const title = $('span.grow.text-lg.text-ellipsis.font-semibold').first().text().trim();
 
-        // 2. Ảnh bìa
-        let image = $('.page-ava img').first().attr('src') || '';
+        // 2. Ảnh bìa (Trích xuất từ background-image style của .cover hoặc data-bg)
+        const $cover = $('.cover').first();
+        let image = $cover.attr('data-bg') || '';
+
+        if (!image) {
+            const styleAttr = $cover.attr('style') || '';
+            const bgMatch = styleAttr.match(/url\(["']?(.*?)["']?\)/);
+            if (bgMatch && bgMatch[1]) {
+                image = bgMatch[1];
+            }
+        }
+
         if (image.startsWith('//')) {
             image = `https:${image}`;
         }
 
-        // 3. Tác giả & Nhóm dịch
+        // Helper lấy text dựa theo nhãn (VD: "Tác giả:", "Nhóm dịch:", "Tình trạng:",...)
         const getInfoText = (label: string): string => {
-            return $pageInfo
-                .find('p')
-                .filter((_, el) => $(el).find('span.info').text().includes(label))
-                .find('span')
-                .last()
-                .text()
-                .trim();
+            return (
+                $('div.mt-2')
+                    .filter((_, el) => $(el).find('span.font-semibold').text().trim().includes(label))
+                    .map((_, el) => {
+                        const $clone = $(el).clone();
+                        $clone.find('span.font-semibold').remove(); // Xóa thẻ label để lấy phần value
+                        return $clone.text().trim();
+                    })
+                    .get()[0] || ''
+            );
         };
 
+        // 3. Tác giả
         const authorVal = getInfoText('Tác giả');
         const author = authorVal && authorVal !== 'Đang cập nhật' ? authorVal : 'Đang cập nhật';
 
         // 4. Trạng thái
-        const statusVal = getInfoText('Tình Trạng');
-        const status = statusVal.includes('Đã hoàn thành') ? 'Completed' : 'Ongoing';
+        const statusVal = getInfoText('Tình trạng');
+        const status = statusVal.toLowerCase().includes('hoàn thành') ? 'Completed' : 'Ongoing';
 
         // 5. Thể loại (Tags)
         const arrayTags: Tag[] = [];
-        $pageInfo.find('a.tag').each((_, element) => {
+        $('a[href*="/the-loai/"]').each((_, element) => {
             const label = $(element).text().trim();
             const href = $(element).attr('href') || '';
-            // Lấy slug đằng sau /the-loai/
             const id = href.split('/the-loai/').pop()?.split('/')[0]?.split('?')[0] ?? '';
 
             if (id && label) {
@@ -274,24 +298,15 @@ export class Parser {
             }
         });
 
-        // 6. Mô tả (Lấy Tên khác + Lượt xem + Nội dung truyện)
-        const altName = getInfoText('Tên Khác');
-
-        // Lấy lượt xem nằm trong span đứng sau span.info "Lượt xem:"
-        const views = $pageInfo
-            .find('span.info')
-            .filter((_, el) => $(el).text().includes('Lượt xem'))
-            .next('span')
-            .text()
-            .trim();
-
-        // Nội dung: Lấy text của thẻ <p style="white-space:pre-wrap">
-        const rawDesc = $pageInfo.find('p[style*="white-space:pre-wrap"]').text().trim();
+        // 6. Mô tả (Tổ hợp Nhóm dịch, Định dạng, Lượt xem, v.v.)
+        const nhomDich = getInfoText('Nhóm dịch');
+        const dinhDang = getInfoText('Định dạng');
+        const views = getInfoText('Lượt xem');
 
         const descParts: string[] = [];
-        if (altName) descParts.push(`Tên khác: ${altName}`);
+        if (dinhDang) descParts.push(`Định dạng: ${dinhDang}`);
+        if (nhomDich) descParts.push(`Nhóm dịch: ${nhomDich}`);
         if (views) descParts.push(`👁 Lượt xem: ${views}`);
-        if (rawDesc) descParts.push(`\n${rawDesc}`);
 
         const description = descParts.join('\n');
 
@@ -332,28 +347,32 @@ export class Parser {
     parseChapterList($: CheerioAPI): Chapter[] {
         const chapters: Chapter[] = [];
 
-        // Bắt chính xác danh sách các dòng chương từ table.listing
-        $('table.listing tbody tr').each((index, element) => {
-            const $row = $(element);
-            const $a = $row.find('td a').first();
+        // Tìm danh sách các thẻ <a> bọc quanh các <li> chương trong danh sách
+        $('ul.overflow-y-auto a[href^="/truyen/"]').each((index, element) => {
+            const $a = $(element);
 
-            // 1. Tên chương (Lấy từ h2.chuong_t)
-            const chapterName = $row.find('h2.chuong_t').text().trim() || $a.text().trim();
-
-            // 2. Lấy href (Ví dụ: "/truyen/dao-tan-bu-co-ban-tomboy-thuo-nho/1-ban-ngot-lim")
+            // 1. Lấy Href & Chapter ID
             const href = $a.attr('href') || '';
-
-            // Tách lấy slug làm chapter ID (Kết quả: "dao-tan-bu-co-ban-tomboy-thuo-nho/1-ban-ngot-lim")
+            // Ví dụ href: "/truyen/tuyen-tap-serge3dx/sinfull-punishment"
+            // Tách lấy slug làm chapterId: "tuyen-tap-serge3dx/sinfull-punishment"
             const rawSlug = href.split('/truyen/').pop() ?? '';
             const chapterId = rawSlug.split('?')[0] || href;
 
+            // 2. Tên chương
+            const chapterName = $a.find('span.text-ellipsis').text().trim();
+
             // 3. Trích xuất số chương (chapNum)
             const chapNumMatch = chapterName.match(/(\d+(?:\.\d+)?)/);
+            // Nếu tìm thấy số trong tên chapter thì dùng, không thì lấy ngược thứ tự danh sách (hoặc index + 1)
             const chapNum = chapNumMatch?.[1] ? parseFloat(chapNumMatch[1]) : index + 1;
 
-            // 4. Thời gian cập nhật (Lấy từ <td> thứ 2: "1/8/2026")
-            const timeStr = $row.find('td').last().text().trim(); // "1/8/2026"
-            const time = this.parseDate(timeStr); // Trả về đối tượng Date chuẩn (1/8/2026)
+            // 4. Thời gian cập nhật
+            const $timeEl = $a.find('span.timeago');
+            const datetimeISO = $timeEl.attr('datetime') || ''; // "2026-08-02T23:48:04.953Z"
+            const relativeTimeStr = $timeEl.text().trim(); // "4 ngày", "2 tuần"
+
+            // Ưu tiên parse từ datetime ISO chuẩn, fallback sang chuỗi hiển thị
+            const time = datetimeISO ? new Date(datetimeISO) : this.parseDate(relativeTimeStr);
 
             if (chapterId && chapterName) {
                 chapters.push(
@@ -362,7 +381,7 @@ export class Parser {
                         name: chapterName,
                         chapNum: chapNum,
                         langCode: '🇻🇳',
-                        group: timeStr,
+                        group: relativeTimeStr || undefined,
                         time: time,
                     })
                 );
@@ -376,23 +395,38 @@ export class Parser {
     parseChapterDetails($: CheerioAPI): string[] {
         const pages: string[] = [];
 
-        // Lấy tất cả ảnh nằm trong #image
-        $('#image img').each((_, element) => {
-            const $img = $(element);
+        // Lấy nội dung script bên trong thẻ div.text-center
+        $('div.text-center script').each((_, element) => {
+            const scriptContent = $(element).html() || '';
 
-            // Lấy link ảnh từ src, data-src hoặc data-original
-            let pageUrl = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || '';
+            // Tìm kiếm các chuỗi bắt đầu bằng http(s):// và kết thúc bằng các đuôi ảnh phổ biến
+            const imageUrlMatches = scriptContent.match(/https?:\/\/[^\s"']+\.(?:png|jpg|jpeg|webp|gif)(?:\?[^\s"']*)?/gi);
 
-            // Xử lý link bắt đầu bằng //
-            if (pageUrl.startsWith('//')) {
-                pageUrl = `https:${pageUrl}`;
-            }
-
-            // Lọc bỏ đường dẫn rỗng hoặc ảnh thumbnail mặc định
-            if (pageUrl && !pageUrl.includes('thumb-default')) {
-                pages.push(pageUrl.trim());
+            if (imageUrlMatches) {
+                imageUrlMatches.forEach((url) => {
+                    // Loại bỏ ảnh rỗng hoặc thumbnail mặc định nếu có
+                    if (url && !url.includes('thumb-default') && !pages.includes(url)) {
+                        pages.push(url.trim());
+                    }
+                });
             }
         });
+
+        // Fallback: Trong trường hợp nguồn HTML thay đổi dùng thẻ <img> trực tiếp
+        if (pages.length === 0) {
+            $('#image img, div.text-center img').each((_, element) => {
+                const $img = $(element);
+                let pageUrl = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || '';
+
+                if (pageUrl.startsWith('//')) {
+                    pageUrl = `https:${pageUrl}`;
+                }
+
+                if (pageUrl && !pageUrl.includes('thumb-default') && !pages.includes(pageUrl)) {
+                    pages.push(pageUrl.trim());
+                }
+            });
+        }
 
         return pages;
     }

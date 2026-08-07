@@ -20,18 +20,18 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { Parser } from './HentaiVNParser';
-import { domainSettings, getDomain, resetSettings } from './HentaiVNSetting';
+import { Parser } from './SayHentaiParser';
+import { domainSettings, getDomain, resetSettings } from './SayHentaiSetting';
 
-const DOMAIN = 'https://hentaivnreal.com';
+const DOMAIN = 'https://lxmanga.space';
 
-export const HentaiVNInfo: SourceInfo = {
+export const SayHentaiInfo: SourceInfo = {
     version: '1.0.0',
-    name: 'HentaiVN',
+    name: 'SayHentai',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
-    description: 'Extension that pulls manga from HentaiVN.',
+    description: 'Extension that pulls manga from SayHentai.',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
@@ -51,7 +51,7 @@ export const HentaiVNInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
-export class HentaiVN implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+export class SayHentai implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
@@ -158,37 +158,34 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         sectionCallback(hotSection);
         sectionCallback(oldSection);
 
-        // 3. Xử lý bất đồng bộ độc lập (Trả về UI ngay khi từng request hoàn thành)
+        // 3. Xử lý bất đồng bộ độc lập
 
-        // Nguồn 1: Trang chủ (chứa Featured & Random) -> Tải trước để UI có dữ liệu hiển thị ngay
+        // Nguồn 1: Trang chủ (dùng chung cho Featured, Random và NewUpdated)
         const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
             featuredSection.items = this.parser.parseFeaturedSection($home);
             sectionCallback(featuredSection);
 
             randomSection.items = this.parser.parseRandomSection($home);
             sectionCallback(randomSection);
-        });
 
-        // Nguồn 2: Truyện mới nhất
-        const fetchNewUpdated = this.DOMHTML(`${baseUrl}/danh-sach?sort=latest`).then(($newUpdated) => {
-            newUpdatedSection.items = this.parser.parseNewUpdatedSection($newUpdated);
+            newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
             sectionCallback(newUpdatedSection);
         });
 
-        // Nguồn 3: Truyện xem nhiều nhất
+        // Nguồn 2: Truyện xem nhiều nhất
         const fetchHot = this.DOMHTML(`${baseUrl}/danh-sach?sort=most-viewed`).then(($hot) => {
             hotSection.items = this.parser.parseHotSection($hot);
             sectionCallback(hotSection);
         });
 
-        // Nguồn 4: Truyện cũ nhất
+        // Nguồn 3: Truyện cũ nhất
         const fetchOld = this.DOMHTML(`${baseUrl}/danh-sach?sort=oldest`).then(($old) => {
             oldSection.items = this.parser.parseSearchResults($old);
             sectionCallback(oldSection);
         });
 
         // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchOld]);
+        await Promise.allSettled([fetchHome, fetchHot, fetchOld]);
     }
 
     async getSearchTags(): Promise<TagSection[]> {
@@ -197,32 +194,33 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         return this.parser.parseTags($);
     }
 
-    // Cache lưu Promise HTML theo mangaId
     private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
 
-    private async fetchMangaPage(mangaId: string): Promise<CheerioAPI> {
+    private async fetchMangaPageCached(mangaId: string): Promise<CheerioAPI> {
         const now = Date.now();
         const cached = this.pageCache.get(mangaId);
 
-        // Giữ cache trong 10 giây
+        // Cache tồn tại dưới 10 giây -> dùng lại
         if (cached && now - cached.timestamp < 10000) {
             return cached.promise;
         }
 
-        const baseUrl = await this.getBaseUrl();
-        const promise = this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
+        const promise = (async () => {
+            const baseUrl = await this.getBaseUrl();
+            return await this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
+        })();
 
         this.pageCache.set(mangaId, { promise, timestamp: now });
         return promise;
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const $ = await this.fetchMangaPage(mangaId);
+        const $ = await this.fetchMangaPageCached(mangaId);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const $ = await this.fetchMangaPage(mangaId);
+        const $ = await this.fetchMangaPageCached(mangaId);
         return this.parser.parseChapterList($);
     }
 

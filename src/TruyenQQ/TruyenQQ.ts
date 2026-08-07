@@ -113,7 +113,7 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             App.createHomeSection({ id: 'full', title: 'Truyện Đã Hoàn Thành', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
         ];
 
-        // Map URL tương ứng cho từng Section ID
+        // 1. Map URL tương ứng cho từng Section ID
         const urlMap: Record<string, string> = {
             featured: `${baseUrl}/doc-truyen`,
             hot: `${baseUrl}/doc-truyen`,
@@ -128,6 +128,9 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             sectionCallback(section);
         }
 
+        // Map quản lý Promise theo URL để tránh gửi trùng HTTP request
+        const urlPromiseMap = new Map<string, Promise<CheerioAPI>>();
+
         // 3. Request song song toàn bộ các section
         const sectionParsers: Record<string, ($: CheerioAPI) => PartialSourceManga[]> = {
             featured: ($) => this.parser.parseFeaturedSection($),
@@ -139,7 +142,13 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
             if (!url) return;
 
             try {
-                const $ = await this.DOMHTML(url);
+                // Nếu URL này chưa có request nào đang chạy, tạo Promise mới và lưu vào Map
+                if (!urlPromiseMap.has(url)) {
+                    urlPromiseMap.set(url, this.DOMHTML(url));
+                }
+
+                // Dùng chung kết quả $ từ Promise duy nhất của URL đó
+                const $ = await urlPromiseMap.get(url)!;
 
                 const parseFn = sectionParsers[section.id] ?? (($) => this.parser.parseSearchResults($));
                 section.items = parseFn($);
@@ -153,15 +162,33 @@ export class TruyenQQ implements SearchResultsProviding, MangaProviding, Chapter
         await Promise.allSettled(fetchPromises);
     }
 
-    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+    // 1. Thêm Map cache vào class
+    private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
+
+    // 2. Helper fetch HTML dùng chung có caching
+    private async fetchMangaPage(mangaId: string): Promise<CheerioAPI> {
+        const now = Date.now();
+        const cached = this.pageCache.get(mangaId);
+
+        // Giữ cache trong 10 giây để phục vụ các hàm gọi song song
+        if (cached && now - cached.timestamp < 10000) {
+            return cached.promise;
+        }
+
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+        const promise = this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+
+        this.pageCache.set(mangaId, { promise, timestamp: now });
+        return promise;
+    }
+
+    async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        const $ = await this.fetchMangaPage(mangaId);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+        const $ = await this.fetchMangaPage(mangaId);
         return this.parser.parseChapterList($);
     }
 

@@ -170,15 +170,34 @@ export class HentaiVNX implements SearchResultsProviding, MangaProviding, Chapte
         return this.parser.parseTags($);
     }
 
+    // 1. Khai báo cache lưu Promise trả về CheerioAPI
+    private requestCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
+
+    // 2. Helper method lấy HTML có caching
+    private async fetchMangaPage(mangaId: string): Promise<CheerioAPI> {
+        const url = `${await this.getBaseUrl()}/truyen-hentai/${mangaId}`;
+        const now = Date.now();
+        const cached = this.requestCache.get(mangaId);
+
+        // Nếu đã có cache và chưa quá 10 giây, dùng lại ngay
+        if (cached && now - cached.timestamp < 10000) {
+            return cached.promise;
+        }
+
+        // Tạo request mới và lưu promise vào cache
+        const promise = this.DOMHTML(url);
+        this.requestCache.set(mangaId, { promise, timestamp: now });
+
+        return promise;
+    }
+
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${mangaId}`);
+        const $ = await this.fetchMangaPage(mangaId);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${mangaId}`);
+        const $ = await this.fetchMangaPage(mangaId);
         return this.parser.parseChapterList($);
     }
 

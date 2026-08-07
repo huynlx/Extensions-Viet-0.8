@@ -236,22 +236,56 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
 
         const params = { page: 1, limit: DEFAULT_LIMIT };
 
+        // Map quản lý Promise theo cacheKey để tránh gửi trùng API
+        const endpointPromiseMap = new Map<string, Promise<any>>();
+
         const fetchPromises = sections.map(async ({ endpoint, parse, section, status }) => {
-            const json = await this.fetchAPI(endpoint, {
-                ...params,
-                status,
-            });
-            if (json) {
-                section.items = parse(json);
-                sectionCallback(section);
+            const queryParams = { ...params, status };
+            // Tạo key định danh dựa trên endpoint và query params
+            const cacheKey = `${endpoint}_${JSON.stringify(queryParams)}`;
+
+            try {
+                // Nếu endpoint với params này chưa có request nào đang chạy, tạo Promise mới
+                if (!endpointPromiseMap.has(cacheKey)) {
+                    endpointPromiseMap.set(cacheKey, this.fetchAPI(endpoint, queryParams));
+                }
+
+                // Dùng chung kết quả JSON từ Promise duy nhất
+                const json = await endpointPromiseMap.get(cacheKey)!;
+
+                if (json) {
+                    section.items = parse(json);
+                    sectionCallback(section);
+                }
+            } catch (error) {
+                console.error(`Failed to load home section [${section.id}]:`, error);
             }
         });
 
         await Promise.allSettled(fetchPromises);
     }
 
+    // 1. Tạo cache lưu Promise trả về JSON theo mangaId
+    private apiCache = new Map<string, { promise: Promise<any>; timestamp: number }>();
+
+    // 2. Helper fetch API dùng chung có caching
+    private async fetchMangaInfo(mangaId: string): Promise<any> {
+        const now = Date.now();
+        const cached = this.apiCache.get(mangaId);
+
+        // Dùng lại kết quả nếu request diễn ra trong vòng 10 giây
+        if (cached && now - cached.timestamp < 10000) {
+            return cached.promise;
+        }
+
+        const promise = this.fetchAPI(`${TComicEndpoints.INFO}/${mangaId}`);
+        this.apiCache.set(mangaId, { promise, timestamp: now });
+
+        return promise;
+    }
+
     async getMangaDetails(mangaId: string): Promise<any> {
-        const json = await this.fetchAPI(`${TComicEndpoints.INFO}/${mangaId}`);
+        const json = await this.fetchMangaInfo(mangaId);
 
         if (!json) {
             throw new Error(`Không thể lấy thông tin chi tiết cho truyện ID: ${mangaId}`);
@@ -261,7 +295,7 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const json = await this.fetchAPI(`${TComicEndpoints.INFO}/${mangaId}`);
+        const json = await this.fetchMangaInfo(mangaId);
 
         if (!json || !json.data) {
             return [];
