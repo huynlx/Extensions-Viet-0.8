@@ -359,11 +359,24 @@ export class Parser {
             .trim();
 
         const descParts: string[] = [];
+
+        // 1. Tên khác
         if (altName) descParts.push(`Tên khác: ${decodeHTML(altName)}`);
-        if (postTime) descParts.push(`⏰ ${decodeHTML(postTime)}`);
-        if (views) descParts.push(`👁 Lượt xem: ${decodeHTML(views)}`);
+
+        // 2. Gộp Thời gian và Lượt xem bằng \n đơn để chúng sát nhau
+        let timeAndView = '';
+        if (postTime) timeAndView += `⏰ ${decodeHTML(postTime)}`;
+        if (views) {
+            // Nếu đã có postTime thì thêm \n, nếu chưa thì bắt đầu luôn
+            timeAndView += (timeAndView ? '\n' : '') + `👁 Lượt xem: ${decodeHTML(views)}`;
+        }
+        if (timeAndView) descParts.push(timeAndView);
+
+        // 3. Nội dung mô tả
         if (rawDesc) descParts.push(decodeHTML(rawDesc));
 
+        // join('\n\n') sẽ tạo khoảng cách lớn giữa các khối (Tên khác / Meta / Mô tả)
+        // nhưng bên trong biến 'timeAndView' chỉ là \n đơn nên chúng sẽ sát nhau
         const description = descParts.join('\n\n');
 
         return App.createSourceManga({

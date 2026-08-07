@@ -290,7 +290,7 @@ export class Parser {
 
         // 2. Trạng thái (Status)
         const statusOptions = [
-            { id: 'status=-1', label: 'Tất cả' },
+            { id: 'status=', label: 'Tất cả' },
             { id: 'status=2', label: 'Hoàn thành' },
             { id: 'status=1', label: 'Đang tiến hành' },
         ];
