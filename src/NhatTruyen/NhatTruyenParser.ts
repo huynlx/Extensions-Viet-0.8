@@ -254,7 +254,7 @@ export class Parser {
     parseChapterDetails($: CheerioAPI): string[] {
         const pages: string[] = [];
 
-        $('.page-chapter img').each((_, element) => {
+        $('.reading-detail.box_doc .page-chapter img').each((_, element) => {
             let pageUrl = $(element).attr('data-original') || $(element).attr('data-src') || $(element).attr('src') || '';
             if (pageUrl.startsWith('//')) {
                 pageUrl = `https:${pageUrl}`;
