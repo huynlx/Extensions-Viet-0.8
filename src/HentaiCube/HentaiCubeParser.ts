@@ -344,15 +344,29 @@ export class Parser {
         const views = $('.manga-rate-view-comment .ion-ios-eye').parent().text().replace(/\s+/g, ' ').trim();
 
         // Nội dung tóm tắt
-        const rawDesc = $('.manga-excerpt, .description-summary .summary__content, .entry-content_wrap').first().text().trim();
+        // const rawDesc = $('.manga-excerpt, .description-summary .summary__content, .entry-content_wrap').first().text().trim();
+
+        // Nội dung tóm tắt (Lấy tất cả các thẻ p bên trong .summary__content và nối bằng \n)
+        // Nội dung tóm tắt (Dùng \n\n để Markdown hiểu là xuống đoạn mới)
+        const descParagraphs: string[] = [];
+        $('.summary__content p').each((_, el) => {
+            const pText = $(el).text().trim();
+            if (pText) {
+                descParagraphs.push(pText);
+            }
+        });
+
+        // Fallback nếu không tìm thấy thẻ p thì lấy text trực tiếp của .summary__content
+        const rawDesc = descParagraphs.length > 0 ? descParagraphs.join('\n\n') : $('.summary__content').first().text().trim() || '';
 
         const descParts: string[] = [];
-        if (altName) descParts.push(`Tên khác: ${altName}`);
-        if (postTime) descParts.push(`⏰ ${postTime}`);
-        if (views) descParts.push(`👁 Lượt xem: ${views}`);
-        if (rawDesc) descParts.push(`\n${rawDesc}`);
+        if (altName) descParts.push(`Tên khác: ${decodeHTML(altName)}`);
+        if (postTime) descParts.push(`⏰ ${decodeHTML(postTime)}`);
+        if (views) descParts.push(`👁 Lượt xem: ${decodeHTML(views)}`);
+        if (rawDesc) descParts.push(decodeHTML(rawDesc));
 
-        const description = descParts.join('\n');
+        // Nối các phần bằng \n\n để mỗi thông tin nằm trên một dòng riêng biệt
+        const description = descParts.join('\n\n');
 
         return App.createSourceManga({
             id: mangaId,
@@ -362,7 +376,7 @@ export class Parser {
                 status: status,
                 author: author,
                 artist: author,
-                desc: decodeHTML(description),
+                desc: description,
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: true,
             }),
