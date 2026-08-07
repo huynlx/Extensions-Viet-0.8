@@ -89,7 +89,7 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
                         subtitle: lastChapter,
                     })
@@ -236,7 +236,7 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
                         subtitle: lastChapter,
                     })
@@ -284,7 +284,7 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
                         subtitle: lastChapter,
                     })
