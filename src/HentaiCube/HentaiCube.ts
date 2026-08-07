@@ -113,68 +113,21 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const baseUrl = await this.getBaseUrl();
 
-        // 1. Khởi tạo các Section
-        const featuredSection = App.createHomeSection({
-            id: 'featured',
-            title: 'Đề Cử',
-            containsMoreItems: false,
-            type: HomeSectionType.featured,
-        });
+        // 1. Khởi tạo các Section tường minh
+        const featuredSection = App.createHomeSection({ id: 'featured', title: 'Đề Cử', type: HomeSectionType.featured, containsMoreItems: false });
+        const hotSection = App.createHomeSection({ id: 'hot', title: 'Trending', type: HomeSectionType.singleRowNormal, containsMoreItems: true });
+        const newUpdatedSection = App.createHomeSection({ id: 'new_updated', title: 'Vừa Cập Nhật', type: HomeSectionType.singleRowNormal, containsMoreItems: true });
+        const viewSection = App.createHomeSection({ id: 'view', title: 'Đọc Nhiều Nhất', type: HomeSectionType.singleRowNormal, containsMoreItems: true });
+        const newSection = App.createHomeSection({ id: 'new', title: 'Mới', type: HomeSectionType.singleRowNormal, containsMoreItems: true });
+        const randomSection = App.createHomeSection({ id: 'random', title: 'Ngẫu Nhiên', type: HomeSectionType.singleRowLarge, containsMoreItems: false });
+        const doneSection = App.createHomeSection({ id: 'done', title: 'Hoàn Thành', type: HomeSectionType.singleRowNormal, containsMoreItems: true });
 
-        const newUpdatedSection = App.createHomeSection({
-            id: 'new_updated',
-            title: 'Vừa Cập Nhật',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const hotSection = App.createHomeSection({
-            id: 'hot',
-            title: 'Trending',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const viewSection = App.createHomeSection({
-            id: 'view',
-            title: 'Đọc Nhiều Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const newSection = App.createHomeSection({
-            id: 'new',
-            title: 'Mới',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const randomSection = App.createHomeSection({
-            id: 'random',
-            title: 'Ngẫu Nhiên',
-            containsMoreItems: false,
-            type: HomeSectionType.singleRowLarge,
-        });
-
-        const doneSection = App.createHomeSection({
-            id: 'done',
-            title: 'Hoàn Thành',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
+        const sections = [featuredSection, hotSection, newUpdatedSection, viewSection, newSection, randomSection, doneSection];
 
         // 2. Callback khung rỗng ngay lập tức
-        sectionCallback(featuredSection);
-        sectionCallback(hotSection);
-        sectionCallback(newUpdatedSection);
-        sectionCallback(viewSection);
-        sectionCallback(newSection);
-        sectionCallback(randomSection);
-        sectionCallback(doneSection);
+        sections.forEach(sectionCallback);
 
-        // 3. Xử lý bất đồng bộ độc lập (Trả về UI ngay khi từng request hoàn thành)
-
-        // Nguồn 1: Trang chủ (chứa Featured & Random) -> Tải trước để UI có dữ liệu hiển thị ngay
+        // 3. Xử lý bất đồng bộ độc lập
         const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
             featuredSection.items = this.parser.parseFeaturedSection($home);
             sectionCallback(featuredSection);
@@ -183,19 +136,16 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(randomSection);
         });
 
-        // Nguồn 2: Truyện mới cập nhật
         const fetchNewUpdated = this.DOMHTML(`${baseUrl}/read`).then(($newUpdated) => {
             newUpdatedSection.items = this.parser.parseNewUpdatedSection($newUpdated);
             sectionCallback(newUpdatedSection);
         });
 
-        // Nguồn 3: Truyện trending
-        const fetchHot = this.DOMHTML(`${baseUrl}`).then(($hot) => {
+        const fetchHot = this.DOMHTML(baseUrl).then(($hot) => {
             hotSection.items = this.parser.parseHotSection($hot);
             sectionCallback(hotSection);
         });
 
-        // Nguồn 4: Truyện xem nhiều
         const fetchView = this.DOMHTML(`${baseUrl}/read/page/1/?m_orderby=views`).then(($view) => {
             viewSection.items = this.parser.parseSearchResults($view);
             sectionCallback(viewSection);
@@ -211,7 +161,6 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(doneSection);
         });
 
-        // Đợi tất cả hoàn thành để kết thúc hàm
         await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchView, fetchNew, fetchDone]);
     }
 
@@ -221,16 +170,8 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         return this.parser.parseMangaDetails($, mangaId);
     }
 
-    // async getChapters(mangaId: string): Promise<Chapter[]> {
-    //     const baseUrl = await this.getBaseUrl();
-    //     const $ = await this.DOMHTML(`${baseUrl}/read/${mangaId}`);
-    //     return this.parser.parseChapterList($);
-    // }
-
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const baseUrl = await this.getBaseUrl();
-
-        // Endpoint AJAX lấy danh sách chapter của Madara theme
         const requestUrl = `${baseUrl}/read/${mangaId}/ajax/chapters/?t=1`;
 
         const request = App.createRequest({
@@ -246,7 +187,6 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         const response = await this.requestManager.schedule(request, 1);
         const $ = this.cheerio.load(response.data as string);
 
-        // Gọi parser đã điều chỉnh selector ở bước trước
         return this.parser.parseChapterList($);
     }
 
@@ -254,7 +194,6 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         const baseUrl = await this.getBaseUrl();
         const chapterUrl = `${baseUrl}/read/${chapterId}/`;
 
-        // 1. Tải HTML trang đọc chapter
         const request = App.createRequest({
             url: chapterUrl,
             method: 'GET',
@@ -262,10 +201,8 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         });
 
         const response = await this.requestManager.schedule(request, 1);
-        const html = response.data as string;
-        const $ = this.cheerio.load(html);
+        const $ = this.cheerio.load(response.data as string);
 
-        // 2. Lấy token ban đầu
         const $reader = $('.masr2-reader, #manga-secure-reader');
         let currentToken = $reader.attr('data-masr2-token') || $reader.attr('data-token') || '';
 
@@ -273,11 +210,9 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             throw new Error(`Không tìm thấy token cho chapter: ${chapterId}`);
         }
 
-        // 3. Tạo nhanh Client ID (32 ký tự hex ngẫu nhiên)
         const cid = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
         const pages: string[] = [];
 
-        // 4. Vòng lặp lấy dữ liệu tối ưu trực tiếp
         while (currentToken) {
             const apiUrl = `${baseUrl}/wp-json/manga-reader/v2/pages?token=${encodeURIComponent(currentToken)}&cid=${encodeURIComponent(cid)}`;
 
@@ -311,9 +246,9 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         const page: number = metadata?.page ?? 1;
         const baseUrl = await this.getBaseUrl();
 
-        let basePath = '';
         const params: string[] = [];
         let hasKeyword = false;
+        let basePath = '';
 
         // 1. Xử lý Từ khóa tìm kiếm
         if (query.title?.trim()) {
@@ -322,57 +257,37 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             params.push('post_type=wp-manga');
         }
 
-        // 2. Xử lý Thể loại (hỗ trợ nhiều tag dạng genre[] hoặc path nếu không có keyword)
+        // 2. Xử lý Thể loại
         if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
-
-                if (!tagId || tagId === 'all') {
-                    continue;
-                }
+                if (!tagId || tagId === 'all') continue;
 
                 if (tagId.includes('=')) {
                     params.push(tagId);
                 } else if (hasKeyword) {
-                    // Nếu có keyword, sử dụng mảng genre[] cho nhiều tag
                     params.push(`genre[]=${tagId}`);
                 } else {
-                    // Nếu chỉ có 1 tag và không có keyword, ưu tiên dùng dạng path (hoặc xử lý tương tự nếu muốn dùng genre[])
                     basePath = `/theloai/${tagId}`;
                 }
             }
         }
 
-        // Thêm tham số author ở cuối nếu có tìm kiếm keyword
         if (hasKeyword) {
             params.push('author=');
         }
 
-        let url = '';
-
-        // 3. Xây dựng URL theo chuẩn
-        if (hasKeyword) {
-            // Định dạng search: https://hentaicube.xyz/page/2/?s=k&post_type=wp-manga&genre[]=big-breasts&genre[]=blackmail&author=
-            const pagePrefix = page > 1 ? `/page/${page}` : '';
-            const queryString = params.length > 0 ? `?${params.join('&')}` : '';
-            url = `${baseUrl}${pagePrefix}${queryString}`;
-        } else {
-            // Định dạng chỉ có tag/danh sách: https://hentaicube.xyz/theloai/3d/page/2/
-            const pageSuffix = page > 1 ? `/page/${page}/` : '';
-            const queryString = params.length > 0 ? `?${params.join('&')}` : '';
-            url = `${baseUrl}${basePath}${pageSuffix}${queryString}`;
-        }
+        // 3. Xây dựng URL chuẩn duy nhất
+        const pagePart = page > 1 ? `/page/${page}` : '';
+        const queryString = params.length > 0 ? `?${params.join('&')}` : '';
+        const url = hasKeyword ? `${baseUrl}${pagePart}${queryString}` : `${baseUrl}${basePath}${pagePart}${queryString}`;
 
         const $ = await this.DOMHTML(url);
-
-        // 4. Phân biệt parser theo việc có từ khóa hay không
         const manga = hasKeyword ? this.parser.parseLoopResults($) : this.parser.parseSearchResults($);
-
-        const hasNextPage = true;
 
         return App.createPagedResults({
             results: manga,
-            metadata: hasNextPage ? { page: page + 1 } : undefined,
+            metadata: { page: page + 1 },
         });
     }
 
@@ -404,7 +319,6 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         };
 
         const config = sectionConfig[homepageSectionId];
-
         if (!config) {
             throw new Error(`Invalid homepage section ID: ${homepageSectionId}`);
         }
@@ -412,12 +326,9 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         const $ = await this.DOMHTML(config.url);
         const manga = config.parse($);
 
-        // Kiểm tra trang tiếp theo bằng nút active trong pagination
-        const hasNextPage = true;
-
         return App.createPagedResults({
             results: manga,
-            metadata: hasNextPage ? { page: page + 1 } : undefined,
+            metadata: { page: page + 1 },
         });
     }
 

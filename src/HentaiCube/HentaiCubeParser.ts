@@ -336,28 +336,27 @@ export class Parser {
 
         // 6. Mô tả & Metadata mở rộng
         const altName = getSummaryContent('Tên khác');
-
-        // Lấy thời gian đăng từ .thoigian
         const postTime = $('.thoigian p').text().replace(/\s+/g, ' ').trim();
-
-        // Lượt xem nằm trong .manga-rate-view-comment .icon.ion-ios-eye
         const views = $('.manga-rate-view-comment .ion-ios-eye').parent().text().replace(/\s+/g, ' ').trim();
 
-        // Nội dung tóm tắt
-        // const rawDesc = $('.manga-excerpt, .description-summary .summary__content, .entry-content_wrap').first().text().trim();
+        // Lấy HTML bên trong .summary__content và chuyển đổi các thẻ HTML sang dạng text/markdown
+        const $summary = $('.summary__content').first();
 
-        // Nội dung tóm tắt (Lấy tất cả các thẻ p bên trong .summary__content và nối bằng \n)
-        // Nội dung tóm tắt (Dùng \n\n để Markdown hiểu là xuống đoạn mới)
-        const descParagraphs: string[] = [];
-        $('.summary__content p').each((_, el) => {
-            const pText = $(el).text().trim();
-            if (pText) {
-                descParagraphs.push(pText);
-            }
+        // Thay thế các thẻ li bằng dấu gạch ngang đầu dòng và thêm xuống dòng
+        $summary.find('li').each((_, el) => {
+            $(el).prepend('• ');
+            $(el).append('\n');
         });
 
-        // Fallback nếu không tìm thấy thẻ p thì lấy text trực tiếp của .summary__content
-        const rawDesc = descParagraphs.length > 0 ? descParagraphs.join('\n\n') : $('.summary__content').first().text().trim() || '';
+        // Thay thế các thẻ kết thúc block như </p>, </ul>, <br> bằng ký tự xuống dòng
+        $summary.find('p, ul, br').after('\n');
+
+        // Lấy text đã được định dạng lại
+        const rawDesc = $summary
+            .text()
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n\s*\n/g, '\n\n')
+            .trim();
 
         const descParts: string[] = [];
         if (altName) descParts.push(`Tên khác: ${decodeHTML(altName)}`);
@@ -365,7 +364,6 @@ export class Parser {
         if (views) descParts.push(`👁 Lượt xem: ${decodeHTML(views)}`);
         if (rawDesc) descParts.push(decodeHTML(rawDesc));
 
-        // Nối các phần bằng \n\n để mỗi thông tin nằm trên một dòng riêng biệt
         const description = descParts.join('\n\n');
 
         return App.createSourceManga({
