@@ -51,11 +51,6 @@ export const HentaiCubeInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
-// Helper tạo chuỗi Hex 32 ký tự giả lập Client ID
-function generateClientId(): string {
-    return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-}
-
 export class HentaiCube implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
@@ -85,8 +80,9 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         },
     });
 
-    getMangaShareUrl(mangaId: string): string {
-        return `${DOMAIN}/truyen/${mangaId}`;
+    async getMangaShareUrl(mangaId: string): Promise<string> {
+        const baseUrl = await this.getBaseUrl();
+        return `${baseUrl}/read/${mangaId}`;
     }
 
     private async DOMHTML(url: string): Promise<CheerioAPI> {
