@@ -123,45 +123,61 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         // 1. Khởi tạo các Section
         const featuredSection = App.createHomeSection({
             id: 'featured',
-            title: 'Truyện Đề Cử',
+            title: 'Đề Cử',
             containsMoreItems: false,
             type: HomeSectionType.featured,
         });
 
         const newUpdatedSection = App.createHomeSection({
             id: 'new_updated',
-            title: 'Truyện Vừa Cập Nhật',
+            title: 'Vừa Cập Nhật',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
 
         const hotSection = App.createHomeSection({
             id: 'hot',
-            title: 'Truyện Xem Nhiều Nhất',
+            title: 'Trending',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
 
-        const oldSection = App.createHomeSection({
-            id: 'old',
-            title: 'Truyện Cũ Nhất',
+        const viewSection = App.createHomeSection({
+            id: 'view',
+            title: 'Đọc Nhiều Nhất',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        const newSection = App.createHomeSection({
+            id: 'new',
+            title: 'Mới',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
 
         const randomSection = App.createHomeSection({
             id: 'random',
-            title: 'Truyện Ngẫu Nhiên',
+            title: 'Ngẫu Nhiên',
             containsMoreItems: false,
             type: HomeSectionType.singleRowLarge,
         });
 
+        const doneSection = App.createHomeSection({
+            id: 'done',
+            title: 'Hoàn Thành',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
         // 2. Callback khung rỗng ngay lập tức
         sectionCallback(featuredSection);
-        sectionCallback(newUpdatedSection);
-        sectionCallback(randomSection);
         sectionCallback(hotSection);
-        sectionCallback(oldSection);
+        sectionCallback(newUpdatedSection);
+        sectionCallback(viewSection);
+        sectionCallback(newSection);
+        sectionCallback(randomSection);
+        sectionCallback(doneSection);
 
         // 3. Xử lý bất đồng bộ độc lập (Trả về UI ngay khi từng request hoàn thành)
 
@@ -180,27 +196,37 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(newUpdatedSection);
         });
 
-        // Nguồn 3: Truyện xem nhiều nhất
-        const fetchHot = this.DOMHTML(`${baseUrl}/danh-sach?sort=most-viewed`).then(($hot) => {
+        // Nguồn 3: Truyện trending
+        const fetchHot = this.DOMHTML(`${baseUrl}`).then(($hot) => {
             hotSection.items = this.parser.parseHotSection($hot);
             sectionCallback(hotSection);
         });
 
-        // Nguồn 4: Truyện cũ nhất
-        const fetchOld = this.DOMHTML(`${baseUrl}/danh-sach?sort=oldest`).then(($old) => {
-            oldSection.items = this.parser.parseSearchResults($old);
-            sectionCallback(oldSection);
+        // Nguồn 4: Truyện xem nhiều
+        const fetchView = this.DOMHTML(`${baseUrl}/read/page/1/?m_orderby=views`).then(($view) => {
+            viewSection.items = this.parser.parseSearchResults($view);
+            sectionCallback(viewSection);
+        });
+
+        const fetchNew = this.DOMHTML(`${baseUrl}/read/page/1/?m_orderby=new-manga`).then(($new) => {
+            newSection.items = this.parser.parseSearchResults($new);
+            sectionCallback(newSection);
+        });
+
+        const fetchDone = this.DOMHTML(`${baseUrl}/?s=&post_type=wp-manga&genre[]=series&op=1&author=&status[]=end`).then(($done) => {
+            doneSection.items = this.parser.parseLoopResults($done);
+            sectionCallback(doneSection);
         });
 
         // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchOld]);
+        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchView, fetchNew, fetchDone]);
     }
 
-    // async getSearchTags(): Promise<TagSection[]> {
-    //     const baseUrl = await this.getBaseUrl();
-    //     const $ = await this.DOMHTML(`${baseUrl}/the-loai`);
-    //     return this.parser.parseTags($);
-    // }
+    async getSearchTags(): Promise<TagSection[]> {
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/the-loai-genres/`);
+        return this.parser.parseTags($);
+    }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
         const baseUrl = await this.getBaseUrl();
@@ -300,9 +326,18 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
 
         let basePath = '';
         const params: string[] = [];
+        let hasKeyword = false;
 
-        // 1. Xử lý Thể loại & Sắp xếp từ includedTags
+        // 1. Xử lý Từ khóa tìm kiếm
+        if (query.title?.trim()) {
+            hasKeyword = true;
+            params.push(`s=${encodeURIComponent(query.title.trim())}`);
+            params.push('post_type=wp-manga');
+        }
+
+        // 2. Xử lý Thể loại (có thể kết hợp cả khi tìm kiếm hoặc độc lập)
         if (query.includedTags && query.includedTags.length > 0) {
+            let genreIndex = 0;
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
 
@@ -311,37 +346,42 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
                 }
 
                 if (tagId.includes('=')) {
-                    // Tham số query (VD: sort=latest)
                     params.push(tagId);
+                } else if (hasKeyword) {
+                    // Nếu vừa có keyword vừa có tag, đưa vào param dạng genre[0]=tagId
+                    params.push(`genre[${genreIndex}]=${tagId}`);
+                    genreIndex++;
                 } else {
-                    // Slug thể loại (VD: 3d-hentai -> /the-loai/3d-hentai)
-                    basePath = `/the-loai/${tagId}`;
+                    // Nếu chỉ có tag (không có keyword), dùng dạng path /theloai/{tagId}
+                    basePath = `/theloai/${tagId}`;
                 }
             }
         }
 
-        // 2. Xử lý Từ khóa tìm kiếm (Ưu tiên đè basePath thành /tim-kiem)
-        if (query.title?.trim()) {
-            basePath = '/tim-kiem';
-            params.push(`q=${encodeURIComponent(query.title.trim())}`);
-            params.push('type=title');
+        // Thêm tham số author ở cuối nếu có tìm kiếm keyword
+        if (hasKeyword) {
+            params.push('author');
         }
 
-        // 3. Nếu KHÔNG có thể loại lẫn tìm kiếm (chỉ chọn Sort hoặc lấy danh sách mặc định)
-        if (!basePath) {
-            basePath = '/danh-sach';
-        }
+        let url = '';
 
-        // 4. Phân trang
-        if (page > 1) {
-            params.push(`page=${page}`);
+        // 3. Xây dựng URL theo chuẩn
+        if (hasKeyword) {
+            // Định dạng search (có thể kèm genre): https://hentaicube.xyz/page/2/?s=b&post_type=wp-manga&genre[0]=big-breasts&author
+            const pagePrefix = page > 1 ? `/page/${page}` : '';
+            const queryString = params.length > 0 ? `?${params.join('&')}` : '';
+            url = `${baseUrl}${pagePrefix}${queryString}`;
+        } else {
+            // Định dạng chỉ có tag/danh sách: https://hentaicube.xyz/theloai/3d/page/2/
+            const pageSuffix = page > 1 ? `/page/${page}/` : '';
+            const queryString = params.length > 0 ? `?${params.join('&')}` : '';
+            url = `${baseUrl}${basePath}${pageSuffix}${queryString}`;
         }
-
-        const queryString = params.length > 0 ? `?${params.join('&')}` : '';
-        const url = `${baseUrl}${basePath}${queryString}`;
 
         const $ = await this.DOMHTML(url);
-        const manga = this.parser.parseSearchResults($);
+
+        // 4. Nếu có keyword hoặc kết hợp cả keyword thì dùng parseLoopResults, chỉ có tag thì dùng parseSearchResults
+        const manga = hasKeyword ? this.parser.parseLoopResults($) : this.parser.parseSearchResults($);
 
         const hasNextPage = true;
 
@@ -358,19 +398,23 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         const sectionConfig: Record<string, { url: string; parse: ($: CheerioAPI) => any[] }> = {
             new_updated: {
                 url: `${baseUrl}/read/page/${page}`,
-                parse: ($) => this.parser.parseNewUpdatedSection($),
-            },
-            hot: {
-                url: `${baseUrl}/danh-sach?sort=most-viewed&page=${page}`,
-                parse: ($) => this.parser.parseHotSection($),
-            },
-            old: {
-                url: `${baseUrl}/danh-sach?sort=oldest&page=${page}`,
                 parse: ($) => this.parser.parseSearchResults($),
             },
-            bad: {
-                url: `${baseUrl}/danh-sach?sort=least-viewed&page=${page}`,
-                parse: ($) => this.parser.parseHotSection($),
+            hot: {
+                url: `${baseUrl}/read/page/${page}/?m_orderby=trending`,
+                parse: ($) => this.parser.parseSearchResults($),
+            },
+            view: {
+                url: `${baseUrl}/read/page/${page}/?m_orderby=views`,
+                parse: ($) => this.parser.parseSearchResults($),
+            },
+            new: {
+                url: `${baseUrl}/read/page/${page}/?m_orderby=new-manga`,
+                parse: ($) => this.parser.parseSearchResults($),
+            },
+            done: {
+                url: `${baseUrl}/page/${page}/?s=&post_type=wp-manga&genre[]=series&op=1&author=&status[]=end`,
+                parse: ($) => this.parser.parseLoopResults($),
             },
         };
 

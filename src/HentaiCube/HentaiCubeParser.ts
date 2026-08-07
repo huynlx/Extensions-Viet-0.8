@@ -5,39 +5,44 @@ import { decodeHTML } from 'entities';
 export class Parser {
     parseFeaturedSection($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
+        const addedMangaIds = new Set<string>(); // Chống trùng lặp do slick-slider tạo clone
 
-        $('.featured-slider-track li').each((_, element) => {
+        // Chỉ định quét chính xác bên trong phần tử có id="c-post-slider-104"
+        $('#c-post-slider-136 .slick-slide:not(.slick-cloned) .related__item, #c-post-slider-136 .related__item').each((_, element) => {
             const $item = $(element);
 
             // 1. Title & Link
-            const $titleLink = $item.find('.box-description a').first();
-            const title = $item.find('.film-name').text().trim();
+            const $titleLink = $item.find('.post-title h5 a').first();
+            const title = $titleLink.text().trim();
 
-            // 2. Manga ID
-            const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            // 2. Manga ID (Tách từ href dạng: https://hentaicube.xyz/read/manga-slug/)
+            const href = $titleLink.attr('href') || $item.find('.related__thumb_item a').first().attr('href') || '';
+            const mangaId = href.split('/read/').pop()?.replace(/\/$/, '')?.split('?')[0] ?? '';
 
-            // 3. Image URL (Trích xuất từ style background-image và fallback '')
-            const bgStyle = $item.find('.featured-cover').attr('style') || '';
-            const match = bgStyle.match(/url\(['"]?(.*?)['"]?\)/);
-            let image = match?.[1] || ''; // Dùng optional chaining & fallback ''
+            // Bỏ qua nếu không có ID hoặc đã bị trùng
+            if (!mangaId || addedMangaIds.has(mangaId)) return;
+
+            // 3. Image URL (Lấy từ src / data-src / srcset của thẻ img)
+            const $img = $item.find('.related__thumb_item img').first();
+            let image = $img.attr('src') || $img.attr('data-src') || $img.attr('srcset')?.split(' ')[0] || '';
 
             if (image.startsWith('//')) {
                 image = `https:${image}`;
             }
 
             // 4. Subtitle
-            const lastChapter = $item.find('.info-detail').text().trim();
+            const subtitle = undefined;
 
-            if (mangaId && title && !mangaId.includes('javascript')) {
+            if (title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: subtitle,
                     })
                 );
+                addedMangaIds.add(mangaId);
             }
         });
 
@@ -94,50 +99,44 @@ export class Parser {
 
     parseHotSection($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
+        const addedMangaIds = new Set<string>(); // Chống trùng lặp do slick-slider tạo clone
 
-        $('.item-list li.item').each((_, element) => {
+        // Chỉ định quét chính xác bên trong phần tử có id="c-post-slider-104"
+        $('#c-post-slider-104 .slick-slide:not(.slick-cloned) .related__item, #c-post-slider-104 .related__item').each((_, element) => {
             const $item = $(element);
 
-            // 1. Title & Link chính từ thẻ <a> trong .box-description p
-            const $titleLink = $item.find('.box-description p a').first();
+            // 1. Title & Link
+            const $titleLink = $item.find('.post-title h5 a').first();
             const title = $titleLink.text().trim();
 
-            // 2. Manga ID từ href (lấy slug sau /truyen/)
-            const href = $titleLink.attr('href') || $item.find('.box-cover a').attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            // 2. Manga ID (Tách từ href dạng: https://hentaicube.xyz/read/manga-slug/)
+            const href = $titleLink.attr('href') || $item.find('.related__thumb_item a').first().attr('href') || '';
+            const mangaId = href.split('/read/').pop()?.replace(/\/$/, '')?.split('?')[0] ?? '';
 
-            // 3. Image URL từ thẻ img.img-list
-            const $img = $item.find('.box-cover img').first();
-            let image = $img.attr('src') || $img.attr('data-src') || '';
+            // Bỏ qua nếu không có ID hoặc đã bị trùng
+            if (!mangaId || addedMangaIds.has(mangaId)) return;
+
+            // 3. Image URL (Lấy từ src / data-src / srcset của thẻ img)
+            const $img = $item.find('.related__thumb_item img').first();
+            let image = $img.attr('src') || $img.attr('data-src') || $img.attr('srcset')?.split(' ')[0] || '';
 
             if (image.startsWith('//')) {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
-            const fullTitleText = $item.find('.box-description p').first().text().trim();
-            const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
-            const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
+            // 4. Subtitle
+            const subtitle = undefined;
 
-            // 5. Lấy số lượt xem từ thẻ <p> chứa "Lượt xem:"
-            const viewsText = $item
-                .find('.box-description p')
-                .filter((_, el) => $(el).find('b.info').text().includes('Lượt xem'))
-                .text()
-                .replace(/Lượt xem:\s*/i, '')
-                .trim();
-
-            const subtitle = viewsText ? `👁 ${viewsText}` : undefined;
-
-            if (mangaId && title && !mangaId.includes('javascript')) {
+            if (title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
                         subtitle: subtitle,
                     })
                 );
+                addedMangaIds.add(mangaId);
             }
         });
 
@@ -146,27 +145,83 @@ export class Parser {
 
     parseRandomSection($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
+        const addedMangaIds = new Set<string>(); // Chống trùng lặp do slick-slider tạo clone
 
-        $('ul.page-random li').each((_, element) => {
+        // Chỉ định quét chính xác bên trong phần tử có id="c-post-slider-104"
+        $('#c-post-slider-113 .slick-slide:not(.slick-cloned) .related__item, #c-post-slider-113 .related__item').each((_, element) => {
             const $item = $(element);
 
-            // 1. Link & Manga ID từ href (lấy slug sau /truyen/)
-            const href = $item.find('a').first().attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            // 1. Title & Link
+            const $titleLink = $item.find('.post-title h5 a').first();
+            const title = $titleLink.text().trim();
 
-            // 2. Title từ .film-name hoặc alt của thẻ <img>
-            const title = $item.find('.film-name').text().trim() || $item.find('img').attr('alt')?.trim() || '';
+            // 2. Manga ID (Tách từ href dạng: https://hentaicube.xyz/read/manga-slug/)
+            const href = $titleLink.attr('href') || $item.find('.related__thumb_item a').first().attr('href') || '';
+            const mangaId = href.split('/read/').pop()?.replace(/\/$/, '')?.split('?')[0] ?? '';
 
-            // 3. Image URL từ thẻ <img>
-            const $img = $item.find('img').first();
-            let image = $img.attr('src') || $img.attr('data-src') || '';
+            // Bỏ qua nếu không có ID hoặc đã bị trùng
+            if (!mangaId || addedMangaIds.has(mangaId)) return;
+
+            // 3. Image URL (Lấy từ src / data-src / srcset của thẻ img)
+            const $img = $item.find('.related__thumb_item img').first();
+            let image = $img.attr('src') || $img.attr('data-src') || $img.attr('srcset')?.split(' ')[0] || '';
 
             if (image.startsWith('//')) {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter từ .meta (VD: "Chap 2")
-            const lastChapter = $item.find('.meta').text().trim() || undefined;
+            // 4. Subtitle
+            const subtitle = undefined;
+
+            if (title && !mangaId.includes('javascript')) {
+                mangaList.push(
+                    App.createPartialSourceManga({
+                        mangaId: mangaId,
+                        title: decodeHTML(title),
+                        image: image,
+                        subtitle: subtitle,
+                    })
+                );
+                addedMangaIds.add(mangaId);
+            }
+        });
+
+        return mangaList;
+    }
+
+    // Parse danh sách truyện (Search, Homepage, ViewMore)
+    parseSearchResults($: CheerioAPI): PartialSourceManga[] {
+        const mangaList: PartialSourceManga[] = [];
+
+        $('.page-listing-item .page-item-detail').each((_, element) => {
+            const $item = $(element);
+
+            // 1. Title & Link chính từ thẻ <a> trong .post-title
+            const $titleLink = $item.find('.post-title a').first();
+            const title = $titleLink.text().replace(/\s+/g, ' ').trim();
+
+            // 2. Manga ID từ href (Lấy slug sau /read/ hoặc fallback theo URL path)
+            const href = $titleLink.attr('href') || $item.find('.item-thumb a').attr('href') || '';
+            let mangaId = '';
+
+            if (href.includes('/read/')) {
+                mangaId = href.split('/read/').pop()?.split('/')[0] ?? '';
+            } else {
+                // Fallback nếu link cấu trúc khác: lấy segment cuối cùng trước slash kết thúc
+                const segments = href.replace(/\/$/, '').split('/');
+                mangaId = segments.pop() ?? '';
+            }
+
+            // 3. Image URL từ thẻ img trong .item-thumb
+            const $img = $item.find('.item-thumb img').first();
+            let image = $img.attr('src') || $img.attr('data-src') || $img.attr('srcset')?.split(' ')[0] || '';
+
+            if (image.startsWith('//')) {
+                image = `https:${image}`;
+            }
+
+            // 4. Chapter/Subtitle (Lấy tên chapter mới nhất từ .list-chapter .chapter-item)
+            const lastChapter = $item.find('.list-chapter .chapter-item .chapter a').first().text().replace(/\s+/g, ' ').trim() || undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
@@ -183,43 +238,38 @@ export class Parser {
         return mangaList;
     }
 
-    // Parse danh sách truyện (Search, Homepage, ViewMore)
-    parseSearchResults($: CheerioAPI): PartialSourceManga[] {
+    parseLoopResults($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        $('.item-list li.item').each((_, element) => {
+        // Cập nhật selector khớp với cấu trúc HTML hiện tại (.row.c-tabs-item__content)
+        $('.row.c-tabs-item__content').each((_, element) => {
             const $item = $(element);
 
-            // 1. Title & Link chính từ thẻ <a> trong .box-description p
-            const $titleLink = $item.find('.box-description p a').first();
-            const title = $titleLink.text().trim();
+            // 1. Title & Link chính từ thẻ <a> trong .post-title
+            const $titleLink = $item.find('.post-title a').first();
+            const title = $titleLink.text().replace(/\s+/g, ' ').trim();
 
-            // 2. Manga ID từ href (lấy slug sau /truyen/)
-            const href = $titleLink.attr('href') || $item.find('.box-cover a').attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            // 2. Manga ID từ href (Lấy slug sau /read/)
+            const href = $titleLink.attr('href') || $item.find('.tab-thumb a').attr('href') || '';
+            let mangaId = '';
 
-            // 3. Image URL từ thẻ img.img-list
-            const $img = $item.find('.box-cover img').first();
-            let image = $img.attr('src') || $img.attr('data-src') || '';
+            if (href.includes('/read/')) {
+                mangaId = href.split('/read/').pop()?.replace(/\/$/, '')?.split('?')[0] ?? '';
+            } else {
+                const segments = href.replace(/\/$/, '').split('/');
+                mangaId = segments.pop() ?? '';
+            }
+
+            // 3. Image URL từ thẻ img trong .tab-thumb
+            const $img = $item.find('.tab-thumb img').first();
+            let image = $img.attr('src') || $img.attr('data-src') || $img.attr('srcset')?.split(' ')[0] || '';
 
             if (image.startsWith('//')) {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
-            const fullTitleText = $item.find('.box-description p').first().text().trim();
-            const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
-            const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
-
-            // 5. Lấy số lượt xem từ thẻ <p> chứa "Lượt xem:"
-            const viewsText = $item
-                .find('.box-description p')
-                .filter((_, el) => $(el).find('b.info').text().includes('Lượt xem'))
-                .text()
-                .replace(/Lượt xem:\s*/i, '')
-                .trim();
-
-            const subtitle = viewsText ? `👁 ${viewsText}` : undefined;
+            // 4. Chapter/Subtitle (Lấy tên chapter mới nhất từ .tab-meta .chapter a)
+            const lastChapter = $item.find('.tab-meta .chapter a').first().text().replace(/\s+/g, ' ').trim() || undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
@@ -382,39 +432,28 @@ export class Parser {
     // Parse danh sách thể loại (Tags)
     parseTags($: CheerioAPI): TagSection[] {
         const genreTags: Tag[] = [];
-        const sortTags: Tag[] = [];
 
-        // 1. Thể loại: ID CHỈ NÊN LÀ SLUG (Ví dụ: "3d-hentai", không chứa "=")
-        $('ul.genre-cloud li a').each((_, element) => {
+        $('.shortcode-alltags .item .inner a').each((_, element) => {
             const $item = $(element);
-            const label = $item.text().trim();
-            const href = $item.attr('href') || '';
+            if (!$item || $item.length === 0) return;
 
-            // Trích xuất slug từ href (VD: /the-loai/3d-hentai -> 3d-hentai)
-            const slug = href.split('/the-loai/').pop()?.split('/')[0]?.split('?')[0];
+            // Lấy trực tiếp text của h3 để giữ nguyên số lượng ở cuối (VD: "3d (22)")
+            const h3Text = $item.find('h3').text();
+            const label = h3Text ? h3Text.trim() : ($item.attr('title')?.trim() ?? '');
+
+            const href = $item.attr('href') || '';
+            const slug = href.split('/theloai/').pop()?.replace(/\/$/, '') ?? '';
 
             if (slug && label) {
                 genreTags.push(
                     App.createTag({
-                        id: slug, // Chỉ lưu slug thuần túy
+                        id: slug,
                         label: label,
                     })
                 );
             }
         });
 
-        // 2. Sắp xếp: ID giữ dạng "key=value" (chứa "=")
-        const sortOptions = [
-            { id: 'sort=latest', label: 'Mới nhất' },
-            { id: 'sort=oldest', label: 'Cũ nhất' },
-            { id: 'sort=most-viewed', label: 'Xem nhiều nhất' },
-            { id: 'sort=least-viewed', label: 'Xem ít nhất' },
-        ];
-
-        for (const option of sortOptions) {
-            sortTags.push(App.createTag({ id: option.id, label: option.label }));
-        }
-
-        return [App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }), App.createTagSection({ id: 'sort', label: 'Sắp xếp', tags: sortTags })];
+        return [App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags })];
     }
 }
