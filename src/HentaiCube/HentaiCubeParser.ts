@@ -7,8 +7,11 @@ export class Parser {
         const mangaList: PartialSourceManga[] = [];
         const addedMangaIds = new Set<string>(); // Chống trùng lặp do slick-slider tạo clone
 
-        // Chỉ định quét chính xác bên trong phần tử có id="c-post-slider-104"
-        $('#c-post-slider-136 .slick-slide:not(.slick-cloned) .related__item, #c-post-slider-136 .related__item').each((_, element) => {
+        // Lấy slider đầu tiên trên trang (bất kể ID động là gì)
+        const $firstSlider = $('[id^="c-post-slider-"]').first();
+
+        // Quét các item bên trong slider đầu tiên đó
+        $firstSlider.find('.slick-slide:not(.slick-cloned) .related__item, .related__item').each((_, element) => {
             const $item = $(element);
 
             // 1. Title & Link
@@ -101,8 +104,11 @@ export class Parser {
         const mangaList: PartialSourceManga[] = [];
         const addedMangaIds = new Set<string>(); // Chống trùng lặp do slick-slider tạo clone
 
-        // Chỉ định quét chính xác bên trong phần tử có id="c-post-slider-104"
-        $('#c-post-slider-104 .slick-slide:not(.slick-cloned) .related__item, #c-post-slider-104 .related__item').each((_, element) => {
+        // Lấy slider thứ hai trên trang (index 1 vì mảng tính từ 0)
+        const $secondSlider = $('[id^="c-post-slider-"]').eq(1);
+
+        // Quét các item bên trong slider thứ hai đó
+        $secondSlider.find('.slick-slide:not(.slick-cloned) .related__item, .related__item').each((_, element) => {
             const $item = $(element);
 
             // 1. Title & Link
@@ -147,8 +153,11 @@ export class Parser {
         const mangaList: PartialSourceManga[] = [];
         const addedMangaIds = new Set<string>(); // Chống trùng lặp do slick-slider tạo clone
 
-        // Chỉ định quét chính xác bên trong phần tử có id="c-post-slider-104"
-        $('#c-post-slider-113 .slick-slide:not(.slick-cloned) .related__item, #c-post-slider-113 .related__item').each((_, element) => {
+        // Lấy slider thứ ba trên trang (index 2 vì mảng tính từ 0)
+        const $thirdSlider = $('[id^="c-post-slider-"]').eq(2);
+
+        // Quét các item bên trong slider thứ ba đó
+        $thirdSlider.find('.slick-slide:not(.slick-cloned) .related__item, .related__item').each((_, element) => {
             const $item = $(element);
 
             // 1. Title & Link
