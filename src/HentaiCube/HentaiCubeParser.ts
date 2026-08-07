@@ -413,17 +413,17 @@ export class Parser {
     }
 
     // Parse trực tiếp mảng JSON thành danh sách Chapter
-    parseChapterList($: CheerioAPI): Chapter[] {
+    parseChapterListFromArray(chapterElements: any[], cheerioInstance: any): Chapter[] {
         const chapters: Chapter[] = [];
 
-        // Chuyển Cheerio object thành Array và đảo ngược thứ tự (CỦ NHẤT -> MỚI NHẤT)
-        const chapterElements = $('.listing-chapters_wrap ul.main li.wp-manga-chapter').toArray().reverse();
+        // Đảo ngược toàn bộ danh sách gộp từ các trang (để từ CŨ NHẤT -> MỚI NHẤT cho đúng chuẩn đọc truyện)
+        const reversedElements = chapterElements.reverse();
 
-        chapterElements.forEach((element, index) => {
-            const $li = $(element);
+        reversedElements.forEach((element, index) => {
+            const $li = cheerioInstance(element);
             const $a = $li.find('a').first();
 
-            // 1. Tên chương (Xóa khoảng trắng thừa)
+            // 1. Tên chương
             const chapterName = $a.text().replace(/\s+/g, ' ').trim();
 
             // 2. Lấy href và bóc tách chapterId
@@ -442,7 +442,7 @@ export class Parser {
                     App.createChapter({
                         id: chapterId,
                         name: chapterName,
-                        chapNum: index + 1, // index 0 (Chap 1A) -> 1, index 1 (Chap 1B) -> 2, ...
+                        chapNum: index + 1, // Đảm bảo số thứ tự tăng dần chuẩn xác từ 1 đến hết
                         langCode: '🇻🇳',
                         group: timeStr,
                         time: time,

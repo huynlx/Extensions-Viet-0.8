@@ -172,22 +172,48 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const baseUrl = await this.getBaseUrl();
-        const requestUrl = `${baseUrl}/read/${mangaId}/ajax/chapters/?t=1`;
+        const allElements: any[] = [];
+        let currentPage = 1;
 
-        const request = App.createRequest({
-            url: requestUrl,
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                Referer: `${baseUrl}/read/${mangaId}/`,
-                Accept: '*/*',
-            },
-        });
+        // Bước 1: Gom toàn bộ phần tử <li> chapter từ tất cả các trang AJAX về một chỗ
+        while (true) {
+            const requestUrl = `${baseUrl}/read/${mangaId}/ajax/chapters/?t=${currentPage}`;
 
-        const response = await this.requestManager.schedule(request, 1);
-        const $ = this.cheerio.load(response.data as string);
+            const request = App.createRequest({
+                url: requestUrl,
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Referer: `${baseUrl}/read/${mangaId}/`,
+                    Accept: '*/*',
+                },
+            });
 
-        return this.parser.parseChapterList($);
+            const response = await this.requestManager.schedule(request, 1);
+            const $ = this.cheerio.load(response.data as string);
+
+            const chapterElements = $('.listing-chapters_wrap ul.main li.wp-manga-chapter').toArray();
+            if (chapterElements.length === 0) break;
+
+            allElements.push(...chapterElements);
+
+            // Kiểm tra xem có trang tiếp theo không
+            const $nextPage = $('.pagination .page a').filter((_, el) => {
+                const pageNum = parseInt($(el).attr('data-page') || '', 10);
+                return pageNum === currentPage + 1;
+            });
+
+            if ($nextPage.length > 0) {
+                currentPage++;
+                if (currentPage > 50) break;
+            } else {
+                break;
+            }
+        }
+
+        // Bước 2: Truyền toàn bộ danh sách phần tử đã gom được vào parser để xử lý một thể
+        // (parser sẽ tự động đảo ngược toàn bộ từ Cũ nhất -> Mới nhất và đánh số chuẩn)
+        return this.parser.parseChapterListFromArray(allElements, this.cheerio);
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
