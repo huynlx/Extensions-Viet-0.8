@@ -335,9 +335,8 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             params.push('post_type=wp-manga');
         }
 
-        // 2. Xử lý Thể loại (có thể kết hợp cả khi tìm kiếm hoặc độc lập)
+        // 2. Xử lý Thể loại (hỗ trợ nhiều tag dạng genre[] hoặc path nếu không có keyword)
         if (query.includedTags && query.includedTags.length > 0) {
-            let genreIndex = 0;
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
 
@@ -348,11 +347,10 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
                 if (tagId.includes('=')) {
                     params.push(tagId);
                 } else if (hasKeyword) {
-                    // Nếu vừa có keyword vừa có tag, đưa vào param dạng genre[0]=tagId
-                    params.push(`genre[${genreIndex}]=${tagId}`);
-                    genreIndex++;
+                    // Nếu có keyword, sử dụng mảng genre[] cho nhiều tag
+                    params.push(`genre[]=${tagId}`);
                 } else {
-                    // Nếu chỉ có tag (không có keyword), dùng dạng path /theloai/{tagId}
+                    // Nếu chỉ có 1 tag và không có keyword, ưu tiên dùng dạng path (hoặc xử lý tương tự nếu muốn dùng genre[])
                     basePath = `/theloai/${tagId}`;
                 }
             }
@@ -360,14 +358,14 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
 
         // Thêm tham số author ở cuối nếu có tìm kiếm keyword
         if (hasKeyword) {
-            params.push('author');
+            params.push('author=');
         }
 
         let url = '';
 
         // 3. Xây dựng URL theo chuẩn
         if (hasKeyword) {
-            // Định dạng search (có thể kèm genre): https://hentaicube.xyz/page/2/?s=b&post_type=wp-manga&genre[0]=big-breasts&author
+            // Định dạng search: https://hentaicube.xyz/page/2/?s=k&post_type=wp-manga&genre[]=big-breasts&genre[]=blackmail&author=
             const pagePrefix = page > 1 ? `/page/${page}` : '';
             const queryString = params.length > 0 ? `?${params.join('&')}` : '';
             url = `${baseUrl}${pagePrefix}${queryString}`;
@@ -380,7 +378,7 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
 
         const $ = await this.DOMHTML(url);
 
-        // 4. Nếu có keyword hoặc kết hợp cả keyword thì dùng parseLoopResults, chỉ có tag thì dùng parseSearchResults
+        // 4. Phân biệt parser theo việc có từ khóa hay không
         const manga = hasKeyword ? this.parser.parseLoopResults($) : this.parser.parseSearchResults($);
 
         const hasNextPage = true;
