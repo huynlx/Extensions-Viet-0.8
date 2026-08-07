@@ -273,22 +273,34 @@ export class Parser {
         const statusTags: Tag[] = [];
         const sortTags: Tag[] = [];
 
-        // 1. Thể loại (Genres)
-        // Thêm tùy chọn "Tất cả" thủ công ở đầu danh sách với id quy ước là 'all'
+        // 1. Thêm thủ công tag "Tất cả" vào đầu danh sách Thể loại
         genreTags.push(App.createTag({ id: 'all', label: 'Tất cả' }));
 
+        // 2. Thể loại (Genres) - Phân biệt loại /tim-truyen và /tag
         $('#ctl00_divRight .genres ul.nav li a').each((_, element) => {
             const label = decodeHTML($(element).text().trim());
             const href = $(element).attr('href') || '';
-            const id = href.split('/tim-truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
 
-            // Lọc bỏ các mục rỗng, trùng 'tim-truyen' hoặc nhãn 'Tất cả' để tránh lặp
-            if (id && label && id !== 'tim-truyen' && label.toLowerCase() !== 'tất cả') {
+            if (!href || label.toLowerCase() === 'tất cả') {
+                return;
+            }
+
+            let id = '';
+            if (href.includes('/tim-truyen/')) {
+                id = href.split('/tim-truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            } else if (href.includes('/tag/')) {
+                const tagSlug = href.split('/tag/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+                if (tagSlug) {
+                    id = `tag/${tagSlug}`;
+                }
+            }
+
+            if (id && label) {
                 genreTags.push(App.createTag({ id: id, label: label }));
             }
         });
 
-        // 2. Trạng thái (Status)
+        // 3. Trạng thái (Status)
         const statusOptions = [
             { id: 'status=', label: 'Tất cả' },
             { id: 'status=2', label: 'Hoàn thành' },
@@ -299,7 +311,7 @@ export class Parser {
             statusTags.push(App.createTag({ id: option.id, label: option.label }));
         }
 
-        // 3. Xếp hạng (Sort Options)
+        // 4. Xếp hạng (Sort Options)
         const sortOptions = [
             { id: 'sort=15', label: 'Truyện mới' },
             { id: 'sort=10', label: 'Top all' },

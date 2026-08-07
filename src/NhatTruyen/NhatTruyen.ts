@@ -250,32 +250,35 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
         let basePath = '/tim-truyen';
         const params: string[] = [];
 
-        // Duyệt qua tất cả các tag được chọn
+        // Duyệt qua tất cả các tag được chọn từ UI
         if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
 
-                // Bỏ qua tag "Tất cả" hoặc root ID
+                // Bỏ qua các tag vô giá trị hoặc tag mặc định
                 if (!tagId || tagId === 'all' || tagId === 'tim-truyen') {
                     continue;
                 }
 
                 if (tagId.includes('=')) {
-                    // Tham số query string (VD: status=1, sort=10)
+                    // Xử lý query params (VD: status=2, sort=15)
                     params.push(tagId);
+                } else if (tagId.startsWith('tag/')) {
+                    // Xử lý trường hợp tag thuộc đường dẫn /tag/... (VD: tag/truyenqq)
+                    basePath = `/${tagId}`;
                 } else {
-                    // Slug thể loại (VD: action-95)
+                    // Xử lý thể loại thông thường (VD: action-95)
                     basePath = `/tim-truyen/${tagId}`;
                 }
             }
         }
 
-        // Từ khóa tìm kiếm
+        // Xử lý Từ khóa tìm kiếm nếu người dùng nhập
         if (query.title?.trim()) {
             params.push(`keyword=${encodeURIComponent(query.title.trim())}`);
         }
 
-        // Phân trang
+        // Xử lý Phân trang
         params.push(`page=${page}`);
 
         const queryString = params.length > 0 ? `?${params.join('&')}` : '';
@@ -284,7 +287,7 @@ export class NhatTruyen implements SearchResultsProviding, MangaProviding, Chapt
         const $ = await this.DOMHTML(url);
         const manga = this.parser.parseSearchResults($);
 
-        // Kiểm tra trang tiếp theo bằng pagination active
+        // Kiểm tra trang tiếp theo dựa vào pagination active
         const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;
 
         return App.createPagedResults({
