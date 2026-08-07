@@ -104,13 +104,10 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         }
     }
 
-    async getSourceMenu(): Promise<DUISection> {
-        return App.createDUISection({
-            id: 'main',
-            header: 'Cài đặt Nguồn Truyện',
-            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
-            isHidden: false,
-        });
+    async getSearchTags(): Promise<TagSection[]> {
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/the-loai-genres/`);
+        return this.parser.parseTags($);
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
@@ -216,12 +213,6 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
 
         // Đợi tất cả hoàn thành để kết thúc hàm
         await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchView, fetchNew, fetchDone]);
-    }
-
-    async getSearchTags(): Promise<TagSection[]> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/the-loai-genres/`);
-        return this.parser.parseTags($);
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
@@ -440,6 +431,15 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
                 origin: `${baseUrl}/`,
                 'user-agent': await this.requestManager.getDefaultUserAgent(),
             },
+        });
+    }
+
+    async getSourceMenu(): Promise<DUISection> {
+        return App.createDUISection({
+            id: 'main',
+            header: 'Cài đặt Nguồn Truyện',
+            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
+            isHidden: false,
         });
     }
 }
