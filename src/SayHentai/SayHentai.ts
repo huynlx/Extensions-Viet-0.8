@@ -148,7 +148,7 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
             id: 'popular',
             title: 'Top Tháng',
             containsMoreItems: false,
-            type: HomeSectionType.singleRowNormal,
+            type: HomeSectionType.singleRowLarge,
         });
 
         // 2. Callback khung rỗng ngay lập tức
