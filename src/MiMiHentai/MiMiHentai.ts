@@ -20,18 +20,18 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { Parser } from './HentaiVNParser';
-import { domainSettings, getDomain, resetSettings } from './HentaiVNSetting';
+import { Parser } from './MiMiHentaiParser';
+import { domainSettings, getDomain, resetSettings } from './MiMiHentaiSetting';
 
-const DOMAIN = 'https://hentaivnreal.com';
+const DOMAIN = 'https://mimihentai.moe';
 
-export const HentaiVNInfo: SourceInfo = {
+export const MiMiHentaiInfo: SourceInfo = {
     version: '1.0.0',
-    name: 'HentaiVN',
+    name: 'MiMiHentai',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
-    description: 'Extension that pulls manga from HentaiVN.',
+    description: 'Extension that pulls manga from MiMiHentai.',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
@@ -51,7 +51,7 @@ export const HentaiVNInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
-export class HentaiVN implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+export class MiMiHentai implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
@@ -114,7 +114,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
 
     async getSearchTags(): Promise<TagSection[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/the-loai`);
+        const $ = await this.DOMHTML(`${baseUrl}/genres`);
         return this.parser.parseTags($);
     }
 
@@ -131,70 +131,58 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
 
         const newUpdatedSection = App.createHomeSection({
             id: 'new_updated',
-            title: 'Truyện Mới Nhất',
+            title: 'TRUYỆN MỚI CẬP NHẬT',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
-        });
-
-        const hotSection = App.createHomeSection({
-            id: 'hot',
-            title: 'Truyện Xem Nhiều Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const oldSection = App.createHomeSection({
-            id: 'old',
-            title: 'Truyện Cũ Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const randomSection = App.createHomeSection({
-            id: 'random',
-            title: 'Truyện Ngẫu Nhiên',
-            containsMoreItems: false,
-            type: HomeSectionType.singleRowLarge,
         });
 
         // 2. Callback khung rỗng ngay lập tức
         sectionCallback(featuredSection);
         sectionCallback(newUpdatedSection);
-        sectionCallback(randomSection);
-        sectionCallback(hotSection);
-        sectionCallback(oldSection);
 
         // 3. Xử lý bất đồng bộ độc lập (Trả về UI ngay khi từng request hoàn thành)
 
         // Nguồn 1: Trang chủ (chứa Featured & Random) -> Tải trước để UI có dữ liệu hiển thị ngay
-        const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
-            featuredSection.items = this.parser.parseFeaturedSection($home);
-            sectionCallback(featuredSection);
+        const fetchHome = (async () => {
+            const request = App.createRequest({
+                url: 'https://mimihentai.moe/api/manga/top',
+                method: 'GET',
+                headers: {
+                    Referer: 'https://mimihentai.moe/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0',
+                },
+            });
 
-            randomSection.items = this.parser.parseRandomSection($home);
-            sectionCallback(randomSection);
-        });
+            const response = await this.requestManager.schedule(request, 1);
+            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+
+            featuredSection.items = this.parser.parseFeaturedSection(json);
+            sectionCallback(featuredSection);
+        })();
 
         // Nguồn 2: Truyện mới nhất
-        const fetchNewUpdated = this.DOMHTML(`${baseUrl}/danh-sach?sort=latest`).then(($newUpdated) => {
-            newUpdatedSection.items = this.parser.parseNewUpdatedSection($newUpdated);
+        const fetchNewUpdated = async () => {
+            const apiUrl = 'https://mimihentai.moe/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45';
+            const request = App.createRequest({
+                url: apiUrl,
+                method: 'GET',
+                headers: {
+                    Referer: 'https://mimihentai.moe/lib',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0',
+                },
+            });
+
+            const response = await this.requestManager.schedule(request, 1);
+            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+
+            newUpdatedSection.items = this.parser.parseNewUpdatedSection(json);
             sectionCallback(newUpdatedSection);
-        });
+        };
 
-        // Nguồn 3: Truyện xem nhiều nhất
-        const fetchHot = this.DOMHTML(`${baseUrl}/danh-sach?sort=most-viewed`).then(($hot) => {
-            hotSection.items = this.parser.parseHotSection($hot);
-            sectionCallback(hotSection);
-        });
-
-        // Nguồn 4: Truyện cũ nhất
-        const fetchOld = this.DOMHTML(`${baseUrl}/danh-sach?sort=oldest`).then(($old) => {
-            oldSection.items = this.parser.parseSearchResults($old);
-            sectionCallback(oldSection);
-        });
+        fetchNewUpdated();
 
         // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchOld]);
+        await Promise.allSettled([fetchHome, fetchNewUpdated]);
     }
 
     // Cache lưu Promise HTML theo mangaId
@@ -210,7 +198,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         }
 
         const baseUrl = await this.getBaseUrl();
-        const promise = this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
+        const promise = this.DOMHTML(`${baseUrl}/manga/${mangaId}`);
 
         this.pageCache.set(mangaId, { promise, timestamp: now });
         return promise;
@@ -228,7 +216,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen/${chapterId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/manga/${chapterId}`);
         const pages = this.parser.parseChapterDetails($);
         return App.createChapterDetails({
             id: chapterId,
@@ -239,54 +227,89 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
 
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
         const page: number = metadata?.page ?? 1;
-        const baseUrl = await this.getBaseUrl();
+        const pageSize = 24;
 
-        let basePath = '';
-        const params: string[] = [];
+        const genreIds: string[] = [];
+        let parodyId = '';
+        let characterId = '';
+        let sortParam = 'updated_at';
 
-        // 1. Xử lý Thể loại & Sắp xếp từ includedTags
+        // 1. Phân loại các tags được truyền vào từ query
         if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
 
-                if (!tagId || tagId === 'all') {
-                    continue;
-                }
+                if (!tagId || tagId === 'all') continue;
 
-                if (tagId.includes('=')) {
-                    // Tham số query (VD: sort=latest)
-                    params.push(tagId);
+                if (tagId.startsWith('sort=')) {
+                    sortParam = tagId.replace('sort=', '');
+                } else if (tagId.startsWith('parody-')) {
+                    // Nhận diện tag Parody khớp từ parseMangaDetails
+                    parodyId = tagId.replace('parody-', '');
+                } else if (tagId.startsWith('character-')) {
+                    // Nhận diện tag Nhân vật khớp từ parseMangaDetails
+                    characterId = tagId.replace('character-', '');
                 } else {
-                    // Slug thể loại (VD: 3d-hentai -> /the-loai/3d-hentai)
-                    basePath = `/the-loai/${tagId}`;
+                    // Thể loại thông thường (dạng số hoặc có prefix genre-)
+                    genreIds.push(tagId.replace('genre-', ''));
                 }
             }
         }
 
-        // 2. Xử lý Từ khóa tìm kiếm (Ưu tiên đè basePath thành /tim-kiem)
-        if (query.title?.trim()) {
-            basePath = '/tim-kiem';
-            params.push(`q=${encodeURIComponent(query.title.trim())}`);
-            params.push('type=title');
+        // 2. Định tuyến Endpoint và Parameters
+        let apiUrl = '';
+        const params: string[] = [];
+
+        if (parodyId) {
+            // Gọi API theo Parody: /api/manga/by-parody/:id
+            apiUrl = `https://mimihentai.moe/api/manga/by-parody/${parodyId}`;
+            if (sortParam) params.push(`sort=${sortParam}`);
+        } else if (characterId) {
+            // Gọi API theo Nhân vật: /api/manga/by-character/:id
+            apiUrl = `https://mimihentai.moe/api/manga/by-character/${characterId}`;
+            if (sortParam) params.push(`sort=${sortParam}`);
+        } else {
+            // Gọi API Tìm kiếm nâng cao: /api/manga/advanced-search
+            apiUrl = 'https://mimihentai.moe/api/manga/advanced-search';
+
+            if (query.title?.trim()) {
+                params.push(`title=${encodeURIComponent(query.title.trim())}`);
+            }
+
+            if (genreIds.length > 0) {
+                params.push(`genre=${genreIds.join(',')}`);
+            }
+
+            if (sortParam) {
+                params.push(`sort=${sortParam}`);
+            }
         }
 
-        // 3. Nếu KHÔNG có thể loại lẫn tìm kiếm (chỉ chọn Sort hoặc lấy danh sách mặc định)
-        if (!basePath) {
-            basePath = '/danh-sach';
-        }
+        // Các tham số phân trang chung
+        params.push(`page=${page}`);
+        params.push(`page_size=${pageSize}`);
 
-        // 4. Phân trang
-        if (page > 1) {
-            params.push(`page=${page}`);
-        }
+        const fullUrl = `${apiUrl}?${params.join('&')}`;
 
-        const queryString = params.length > 0 ? `?${params.join('&')}` : '';
-        const url = `${baseUrl}${basePath}${queryString}`;
+        // 3. Thực hiện Request API
+        const request = App.createRequest({
+            url: fullUrl,
+            method: 'GET',
+            headers: {
+                accept: '*/*',
+                Referer: 'https://mimihentai.moe/search',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0',
+            },
+        });
 
-        const $ = await this.DOMHTML(url);
-        const manga = this.parser.parseSearchResults($);
+        const response = await this.requestManager.schedule(request, 1);
+        const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
 
-        const hasNextPage = true;
+        // 4. Parse kết quả danh sách truyện
+        const manga = this.parser.parseNewUpdatedSection(json);
+
+        // Xử lý phân trang chính xác dựa vào payload JSON
+        const hasNextPage = json?.has_next ?? json?.page < json?.total_pages;
 
         return App.createPagedResults({
             results: manga,
@@ -296,38 +319,41 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
 
     async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const page: number = metadata?.page ?? 1;
-        const baseUrl = await this.getBaseUrl();
+        const pageSize = 45;
 
-        const sectionConfig: Record<string, { url: string; parse: ($: CheerioAPI) => any[] }> = {
-            new_updated: {
-                url: `${baseUrl}/danh-sach?sort=latest&page=${page}`,
-                parse: ($) => this.parser.parseNewUpdatedSection($),
-            },
-            hot: {
-                url: `${baseUrl}/danh-sach?sort=most-viewed&page=${page}`,
-                parse: ($) => this.parser.parseHotSection($),
-            },
-            old: {
-                url: `${baseUrl}/danh-sach?sort=oldest&page=${page}`,
-                parse: ($) => this.parser.parseSearchResults($),
-            },
-            bad: {
-                url: `${baseUrl}/danh-sach?sort=least-viewed&page=${page}`,
-                parse: ($) => this.parser.parseHotSection($),
-            },
+        // Mapping section ID sang param sort tương ứng trên API
+        const sortMapping: Record<string, string> = {
+            new_updated: 'updated_at',
+            hot: '-view', // Hoặc 'view' tùy theo convention sắp xếp của API
+            old: 'created_at',
+            bad: 'view',
         };
 
-        const config = sectionConfig[homepageSectionId];
+        const sortParam = sortMapping[homepageSectionId];
 
-        if (!config) {
+        if (!sortParam) {
             throw new Error(`Invalid homepage section ID: ${homepageSectionId}`);
         }
 
-        const $ = await this.DOMHTML(config.url);
-        const manga = config.parse($);
+        const apiUrl = `https://mimihentai.moe/api/manga?sort=${sortParam}&exclude_genre=196&page=${page}&page_size=${pageSize}`;
 
-        // Kiểm tra trang tiếp theo bằng nút active trong pagination
-        const hasNextPage = true;
+        const request = App.createRequest({
+            url: apiUrl,
+            method: 'GET',
+            headers: {
+                Referer: 'https://mimihentai.moe/lib',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0',
+            },
+        });
+
+        const response = await this.requestManager.schedule(request, 1);
+        const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+
+        // Dùng chung parser parseNewUpdatedSection đã viết ở bước trước
+        const manga = this.parser.parseNewUpdatedSection(json);
+
+        // Kiểm tra trang tiếp theo dựa vào field `has_next` hoặc so sánh tổng số trang
+        const hasNextPage = json?.has_next ?? json?.page < json?.total_pages;
 
         return App.createPagedResults({
             results: manga,
