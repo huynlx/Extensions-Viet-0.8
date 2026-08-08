@@ -20,7 +20,7 @@ import {
     SourceManga,
     TagSection,
 } from '@paperback/types';
-import { Cheerio, CheerioAPI } from 'cheerio';
+import { CheerioAPI } from 'cheerio';
 import { Parser } from './MauLonParser';
 import { domainSettings, getDomain, resetSettings } from './MauLonSetting';
 
@@ -144,19 +144,17 @@ export class MauLon implements SearchResultsProviding, MangaProviding, ChapterPr
         // 3. Xử lý bất đồng bộ các luồng request độc lập
 
         // Nguồn 1: Mới cập nhật (lấy từ Trang chủ)
-        const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
+        const fetchHome = this.DOMHTML(cleanBaseUrl).then(($home) => {
             newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
             sectionCallback(newUpdatedSection);
         });
 
         // Nguồn 2: Random Section (Lấy ngẫu nhiên từ trang 2 hoặc 3 của trang chủ và shuffle)
         const randomUrl = `${cleanBaseUrl}/?orderby=rand`;
-        const fetchRandom = this.DOMHTML(randomUrl)
-            .catch(() => this.DOMHTML(baseUrl)) // Fallback về trang chủ nếu page ngẫu nhiên lỗi
-            .then(($randomPage) => {
-                randomSection.items = this.parser.parseNewUpdatedSection($randomPage);
-                sectionCallback(randomSection);
-            });
+        const fetchRandom = this.DOMHTML(randomUrl).then(($randomPage) => {
+            randomSection.items = this.parser.parseNewUpdatedSection($randomPage);
+            sectionCallback(randomSection);
+        });
 
         // Đợi tất cả hoàn thành để kết thúc hàm
         await Promise.allSettled([fetchHome, fetchRandom]);
