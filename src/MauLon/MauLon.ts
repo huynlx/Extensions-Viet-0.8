@@ -122,14 +122,14 @@ export class MauLon implements SearchResultsProviding, MangaProviding, ChapterPr
         // 1. Khởi tạo tất cả các Home Section
         const newUpdatedSection = App.createHomeSection({
             id: 'new_updated',
-            title: 'Home',
+            title: 'Trang Chủ',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
 
         const randomSection = App.createHomeSection({
             id: 'random_section',
-            title: 'Random',
+            title: 'Ngẫu Nhiên',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
