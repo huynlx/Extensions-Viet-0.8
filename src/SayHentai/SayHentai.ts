@@ -175,13 +175,7 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
             sectionCallback(hotSection);
         });
 
-        // // Nguồn 2: Truyện xem nhiều nhất
-        // const fetchHot = this.DOMHTML(`${baseUrl}/danh-sach?sort=most-viewed`).then(($hot) => {
-        //     hotSection.items = this.parser.parseHotSection($hot);
-        //     sectionCallback(hotSection);
-        // });
-
-        // Nguồn 3: Truyện full
+        // Nguồn 2: Truyện full
         const fetchDone = this.DOMHTML(`${baseUrl}/completed`).then(($done) => {
             doneSection.items = this.parser.parseSearchResults($done);
             sectionCallback(doneSection);
@@ -308,10 +302,6 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
             new_updated: {
                 url: `${baseUrl}/?page=${page}`,
                 parse: ($) => this.parser.parseNewUpdatedSection($),
-            },
-            hot: {
-                url: `${baseUrl}/danh-sach?sort=most-viewed&page=${page}`,
-                parse: ($) => this.parser.parseHotSection($),
             },
             done: {
                 url: `${baseUrl}/completed?page=${page}`,
