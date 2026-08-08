@@ -240,7 +240,14 @@ export class Parser {
             const href = $tag.attr('href') || '';
             if (href === 'https://maulon.vip' || href === 'https://maulon.vip/') return;
 
-            const id = href.replace(/\/$/, '').split('/').pop() || href;
+            // Bóc tách giữ nguyên đường dẫn slug phía sau domain
+            let id = '';
+            try {
+                const urlObj = new URL(href, 'https://maulon.vip');
+                id = urlObj.pathname.replace(/^\/|\/$/g, '');
+            } catch {
+                id = href.replace(/^https?:\/\/[^\/]+\//, '').replace(/\/$/, '');
+            }
 
             if (id && label && !arrayTags.some((t) => t.id === id)) {
                 arrayTags.push(App.createTag({ id: id, label: label }));
@@ -253,7 +260,14 @@ export class Parser {
             const label = $tag.text().trim();
             const href = $tag.attr('href') || '';
 
-            const id = href.replace(/\/$/, '').split('/tag/')[1]?.trim() || href.replace(/\/$/, '').split('/').pop() || '';
+            // Bóc tách giữ nguyên đường dẫn slug phía sau domain
+            let id = '';
+            try {
+                const urlObj = new URL(href, 'https://maulon.vip');
+                id = urlObj.pathname.replace(/^\/|\/$/g, '');
+            } catch {
+                id = href.replace(/^https?:\/\/[^\/]+\//, '').replace(/\/$/, '');
+            }
 
             if (id && label && !arrayTags.some((t) => t.id === id)) {
                 arrayTags.push(App.createTag({ id: id, label: label }));
