@@ -23,7 +23,7 @@ import { CheerioAPI } from 'cheerio';
 import { Parser } from './SayHentaiParser';
 import { domainSettings, getDomain, resetSettings } from './SayHentaiSetting';
 
-const DOMAIN = 'https://lxmanga.space';
+const DOMAIN = 'https://sayhentai.cx';
 
 export const SayHentaiInfo: SourceInfo = {
     version: '1.0.0',
@@ -125,72 +125,75 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
 
         const newUpdatedSection = App.createHomeSection({
             id: 'new_updated',
-            title: 'Truyện Mới Nhất',
+            title: 'Mới Cập Nhật',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
 
         const hotSection = App.createHomeSection({
             id: 'hot',
-            title: 'Truyện Xem Nhiều Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const oldSection = App.createHomeSection({
-            id: 'old',
-            title: 'Truyện Cũ Nhất',
-            containsMoreItems: true,
-            type: HomeSectionType.singleRowNormal,
-        });
-
-        const randomSection = App.createHomeSection({
-            id: 'random',
-            title: 'Truyện Ngẫu Nhiên',
+            title: 'Top Ngày',
             containsMoreItems: false,
-            type: HomeSectionType.singleRowLarge,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        const doneSection = App.createHomeSection({
+            id: 'done',
+            title: 'Truyện Full',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        const popularSection = App.createHomeSection({
+            id: 'popular',
+            title: 'Top Tháng',
+            containsMoreItems: false,
+            type: HomeSectionType.singleRowNormal,
         });
 
         // 2. Callback khung rỗng ngay lập tức
         sectionCallback(featuredSection);
-        sectionCallback(newUpdatedSection);
-        sectionCallback(randomSection);
         sectionCallback(hotSection);
-        sectionCallback(oldSection);
+        sectionCallback(newUpdatedSection);
+        sectionCallback(popularSection);
+        sectionCallback(doneSection);
 
         // 3. Xử lý bất đồng bộ độc lập
 
-        // Nguồn 1: Trang chủ (dùng chung cho Featured, Random và NewUpdated)
+        // Nguồn 1: Trang chủ (dùng chung cho Featured, Popular và NewUpdated)
         const fetchHome = this.DOMHTML(baseUrl).then(($home) => {
             featuredSection.items = this.parser.parseFeaturedSection($home);
             sectionCallback(featuredSection);
 
-            randomSection.items = this.parser.parseRandomSection($home);
-            sectionCallback(randomSection);
+            popularSection.items = this.parser.parsePopularSection($home);
+            sectionCallback(popularSection);
 
             newUpdatedSection.items = this.parser.parseNewUpdatedSection($home);
             sectionCallback(newUpdatedSection);
-        });
 
-        // Nguồn 2: Truyện xem nhiều nhất
-        const fetchHot = this.DOMHTML(`${baseUrl}/danh-sach?sort=most-viewed`).then(($hot) => {
-            hotSection.items = this.parser.parseHotSection($hot);
+            hotSection.items = this.parser.parseHotSection($home);
             sectionCallback(hotSection);
         });
 
-        // Nguồn 3: Truyện cũ nhất
-        const fetchOld = this.DOMHTML(`${baseUrl}/danh-sach?sort=oldest`).then(($old) => {
-            oldSection.items = this.parser.parseSearchResults($old);
-            sectionCallback(oldSection);
+        // // Nguồn 2: Truyện xem nhiều nhất
+        // const fetchHot = this.DOMHTML(`${baseUrl}/danh-sach?sort=most-viewed`).then(($hot) => {
+        //     hotSection.items = this.parser.parseHotSection($hot);
+        //     sectionCallback(hotSection);
+        // });
+
+        // Nguồn 3: Truyện full
+        const fetchDone = this.DOMHTML(`${baseUrl}/completed`).then(($done) => {
+            doneSection.items = this.parser.parseSearchResults($done);
+            sectionCallback(doneSection);
         });
 
         // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchHome, fetchHot, fetchOld]);
+        await Promise.allSettled([fetchHome, fetchDone]);
     }
 
     async getSearchTags(): Promise<TagSection[]> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/the-loai`);
+        const $ = await this.DOMHTML(`${baseUrl}/genre`);
         return this.parser.parseTags($);
     }
 
@@ -207,7 +210,7 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
 
         const promise = (async () => {
             const baseUrl = await this.getBaseUrl();
-            return await this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
+            return await this.DOMHTML(`${baseUrl}/${mangaId}`);
         })();
 
         this.pageCache.set(mangaId, { promise, timestamp: now });
@@ -226,8 +229,13 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
         const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen/${chapterId}`);
+
+        // Đảm bảo URL ghép chính xác: https://sayhentai.cx/truyen-dan-ong-tren-doi-di-dau-het-roi/chuong-9
+        const cleanChapterId = chapterId.startsWith('/') ? chapterId.substring(1) : chapterId;
+        const $ = await this.DOMHTML(`${baseUrl}/${cleanChapterId}`);
+
         const pages = this.parser.parseChapterDetails($);
+
         return App.createChapterDetails({
             id: chapterId,
             mangaId: mangaId,
@@ -255,20 +263,19 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
                     // Tham số query (VD: sort=latest)
                     params.push(tagId);
                 } else {
-                    // Slug thể loại (VD: 3d-hentai -> /the-loai/3d-hentai)
-                    basePath = `/the-loai/${tagId}`;
+                    // Slug thể loại (VD: nguc-lon -> /genre/nguc-lon)
+                    basePath = `/genre/${tagId}`;
                 }
             }
         }
 
-        // 2. Xử lý Từ khóa tìm kiếm (Ưu tiên đè basePath thành /tim-kiem)
+        // 2. Xử lý Từ khóa tìm kiếm (Ưu tiên đè basePath thành /search)
         if (query.title?.trim()) {
-            basePath = '/tim-kiem';
-            params.push(`q=${encodeURIComponent(query.title.trim())}`);
-            params.push('type=title');
+            basePath = '/search';
+            params.push(`s=${encodeURIComponent(query.title.trim())}`);
         }
 
-        // 3. Nếu KHÔNG có thể loại lẫn tìm kiếm (chỉ chọn Sort hoặc lấy danh sách mặc định)
+        // 3. Nếu KHÔNG có thể loại lẫn tìm kiếm (mặc định về trang danh sách)
         if (!basePath) {
             basePath = '/danh-sach';
         }
@@ -284,7 +291,8 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
         const $ = await this.DOMHTML(url);
         const manga = this.parser.parseSearchResults($);
 
-        const hasNextPage = true;
+        // Bạn có thể tùy chỉnh lại điều kiện checking hasNextPage từ DOM nếu cần
+        const hasNextPage = manga.length > 0;
 
         return App.createPagedResults({
             results: manga,
@@ -298,20 +306,16 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
 
         const sectionConfig: Record<string, { url: string; parse: ($: CheerioAPI) => any[] }> = {
             new_updated: {
-                url: `${baseUrl}/danh-sach?sort=latest&page=${page}`,
+                url: `${baseUrl}/?page=${page}`,
                 parse: ($) => this.parser.parseNewUpdatedSection($),
             },
             hot: {
                 url: `${baseUrl}/danh-sach?sort=most-viewed&page=${page}`,
                 parse: ($) => this.parser.parseHotSection($),
             },
-            old: {
-                url: `${baseUrl}/danh-sach?sort=oldest&page=${page}`,
+            done: {
+                url: `${baseUrl}/completed?page=${page}`,
                 parse: ($) => this.parser.parseSearchResults($),
-            },
-            bad: {
-                url: `${baseUrl}/danh-sach?sort=least-viewed&page=${page}`,
-                parse: ($) => this.parser.parseHotSection($),
             },
         };
 

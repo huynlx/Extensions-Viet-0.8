@@ -1,6 +1,6 @@
 import { DUIButton, DUINavigationButton, SourceStateManager } from '@paperback/types';
 
-const DEFAULT_BASE_URL = 'https://lxmanga.space';
+const DEFAULT_BASE_URL = 'https://sayhentai.cx';
 
 // --- HELPERS RETRIEVE STATE ---
 
