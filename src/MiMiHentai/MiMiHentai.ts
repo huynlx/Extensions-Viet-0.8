@@ -208,9 +208,9 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(staffPickSection);
         })();
 
-        // Nguồn 3: Truyện mới nhất (Loại trừ genre=196)
+        // Nguồn 3: Truyện mới nhất
         const fetchNewUpdated = (async () => {
-            const apiUrl = 'https://mimihentai.moe/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45';
+            const apiUrl = 'https://mimihentai.moe/api/manga?sort=updated_at&page=1&page_size=45';
             const request = App.createRequest({
                 url: apiUrl,
                 method: 'GET',
@@ -227,9 +227,9 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(newUpdatedSection);
         })();
 
-        // Nguồn 4: Truyện Reup Mới (Bao gồm genre=196)
+        // Nguồn 4: Truyện Reup Mới
         const fetchNewReup = (async () => {
-            const apiUrl = 'https://mimihentai.moe/api/manga?sort=updated_at&include_genre=196&page=1&page_size=45';
+            const apiUrl = 'https://mimihentai.moe/api/manga?sort=updated_at&page=1&page_size=45';
             const request = App.createRequest({
                 url: apiUrl,
                 method: 'GET',
@@ -320,7 +320,7 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
         let characterId = '';
         let sortParam = 'updated_at';
 
-        // 1. Phân loại các tags được truyền vào từ query
+        // 1. Phân loại tất cả các loại Tags được truyền vào từ query
         if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
@@ -328,51 +328,62 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
                 if (!tagId || tagId === 'all') continue;
 
                 if (tagId.startsWith('album-')) {
-                    // Nhận diện tag Album (từ section albums hoặc prefix)
+                    // Nhận diện Tag Album (VD: album-1080)
                     albumId = tagId.replace('album-', '');
+                } else if (tagId.startsWith('sort-')) {
+                    // Nhận diện Tag Sắp xếp từ parseTags (VD: sort-updated_at, sort-views, sort-title, ...)
+                    sortParam = tagId.replace('sort-', '');
                 } else if (tagId.startsWith('sort=')) {
+                    // Nhận diện Tag Sắp xếp dạng query param
                     sortParam = tagId.replace('sort=', '');
                 } else if (tagId.startsWith('parody-')) {
-                    // Nhận diện tag Parody
+                    // Nhận diện Tag Parody
                     parodyId = tagId.replace('parody-', '');
                 } else if (tagId.startsWith('character-')) {
-                    // Nhận diện tag Nhân vật
+                    // Nhận diện Tag Nhân vật
                     characterId = tagId.replace('character-', '');
                 } else if (tagId.startsWith('genre-')) {
-                    // Nhận diện tag Thể loại
+                    // Nhận diện Tag Thể loại
                     genreIds.push(tagId.replace('genre-', ''));
+                } else {
+                    // Fallback cho ID thể loại thuần số
+                    genreIds.push(tagId);
                 }
             }
         }
 
-        // 2. Định tuyến Endpoint và Parameters
+        // 2. Định tuyến Endpoint và Tham số API tương ứng
         let apiUrl = '';
         const params: string[] = [];
 
         if (albumId) {
-            // Gọi API lấy truyện theo Album: /api/album/:id hoặc /api/albums/:id
+            // Lấy truyện theo Album
             apiUrl = `https://mimihentai.moe/api/albums/${albumId}/manga`;
             if (sortParam) params.push(`sort=${sortParam}`);
         } else if (parodyId) {
-            // Gọi API theo Parody: /api/manga/by-parody/:id
+            // Lấy truyện theo Parody
             apiUrl = `https://mimihentai.moe/api/manga/by-parody/${parodyId}`;
             if (sortParam) params.push(`sort=${sortParam}`);
         } else if (characterId) {
-            // Gọi API theo Nhân vật: /api/manga/by-character/:id
+            // Lấy truyện theo Nhân vật
             apiUrl = `https://mimihentai.moe/api/manga/by-character/${characterId}`;
             if (sortParam) params.push(`sort=${sortParam}`);
-        } else {
-            // Gọi API Tìm kiếm nâng cao: /api/manga/advanced-search
+        } else if (query.title?.trim() || genreIds.length > 0) {
+            // Tìm kiếm nâng cao (có Tên truyện hoặc lọc Thể loại)
             apiUrl = 'https://mimihentai.moe/api/manga/advanced-search';
 
             if (query.title?.trim()) {
                 params.push(`title=${encodeURIComponent(query.title.trim())}`);
             }
-
             if (genreIds.length > 0) {
                 params.push(`genre=${genreIds.join(',')}`);
             }
-
+            if (sortParam) {
+                params.push(`sort=${sortParam}`);
+            }
+        } else {
+            // Danh sách truyện chung / Sắp xếp danh mục (Mới cập nhật, A-Z, Xem nhiều, Theo dõi, Thích)
+            apiUrl = 'https://mimihentai.moe/api/manga';
             if (sortParam) {
                 params.push(`sort=${sortParam}`);
             }
@@ -398,11 +409,10 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
         const response = await this.requestManager.schedule(request, 1);
         const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
 
-        // 4. Parse kết quả danh sách truyện (Hỗ trợ cấu trúc trả về dạng mảng truyện trực tiếp hoặc bọc trong key items/mangas)
-        const rawItems = json?.items || json?.mangas || json?.data || (Array.isArray(json) ? json : []);
+        // 4. Parse kết quả danh sách truyện
         const manga = this.parser.parseSearchResults(json);
 
-        // Xử lý phân trang
+        // Xử lý phân trang chính xác
         const hasNextPage = json?.has_next ?? (json?.page && json?.total_pages ? json.page < json.total_pages : manga.length >= pageSize);
 
         return App.createPagedResults({
@@ -420,9 +430,9 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
 
         // 1. Phân nhánh tạo API URL
         if (homepageSectionId === 'new_updated') {
-            apiUrl = `https://mimihentai.moe/api/manga?sort=updated_at&exclude_genre=196&page=${page}&page_size=${pageSize}`;
+            apiUrl = `https://mimihentai.moe/api/manga?sort=updated_at&page=${page}&page_size=${pageSize}`;
         } else if (homepageSectionId === 'new_reup') {
-            apiUrl = `https://mimihentai.moe/api/manga?sort=updated_at&include_genre=196&page=${page}&page_size=${pageSize}`;
+            apiUrl = `https://mimihentai.moe/api/manga?sort=updated_at&page=${page}&page_size=${pageSize}`;
         } else {
             const sortMapping: Record<string, string> = {
                 hot: '-view',
@@ -436,7 +446,7 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
                 throw new Error(`Invalid homepage section ID: ${homepageSectionId}`);
             }
 
-            apiUrl = `https://mimihentai.moe/api/manga?sort=${sortParam}&exclude_genre=196&page=${page}&page_size=${pageSize}`;
+            apiUrl = `https://mimihentai.moe/api/manga?sort=${sortParam}&page=${page}&page_size=${pageSize}`;
         }
 
         // 2. Gửi request

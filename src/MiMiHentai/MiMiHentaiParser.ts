@@ -381,6 +381,14 @@ export class Parser {
 
     // Parse danh sách thể loại (Tags)
     parseTags($genres: CheerioAPI, $home?: CheerioAPI): TagSection[] {
+        const sortTags: Tag[] = [
+            App.createTag({ id: 'sort-updated_at', label: 'Mới' }),
+            App.createTag({ id: 'sort-title', label: 'A-Z' }),
+            App.createTag({ id: 'sort-views', label: 'Xem nhiều' }),
+            App.createTag({ id: 'sort-follows', label: 'Theo dõi' }),
+            App.createTag({ id: 'sort-likes', label: 'Thích' }),
+        ];
+
         const genreTags: Tag[] = [];
         const albumTags: Tag[] = [];
 
@@ -417,13 +425,19 @@ export class Parser {
                 const href = $item.attr('href') || '';
 
                 const id = href.split('/genres/').pop()?.split('/')[0]?.split('?')[0];
-                const label = $item.find('.truncate').text().trim() || $item.find('.flex-1 > div').first().text().trim();
+                const rawLabel = $item.find('.truncate').text().trim() || $item.find('.flex-1 > div').first().text().trim();
 
-                if (id && label) {
+                // Tách lấy số lượng truyện từ div chứa thông tin count (Ví dụ: "16 truyện")
+                const countText = $item.find('div.text-xs.text-zinc-500').text().trim();
+
+                if (id && rawLabel) {
+                    // Ghép label với count: ví dụ "Tên Thể Loại (16 truyện)"
+                    const fullLabel = countText ? `${rawLabel} (${countText})` : rawLabel;
+
                     genreTags.push(
                         App.createTag({
-                            id: `genre-${id}`, // Gắn prefix 'genre-' để getSearchResults phân loại id,
-                            label: decodeHTML(label),
+                            id: `genre-${id}`, // Gắn prefix 'genre-' để getSearchResults phân loại
+                            label: decodeHTML(fullLabel),
                         })
                     );
                 }
@@ -439,6 +453,8 @@ export class Parser {
         if (genreTags.length > 0) {
             sections.push(App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }));
         }
+
+        sections.push(App.createTagSection({ id: 'sorts', label: 'Sắp xếp', tags: sortTags }));
 
         return sections;
     }
