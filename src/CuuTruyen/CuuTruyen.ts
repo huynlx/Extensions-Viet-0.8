@@ -21,7 +21,7 @@ import {
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { Parser } from './CuuTruyenParser';
-import { domainSettings, getDomain, resetSettings } from './CuuTruyenSetting';
+import { domainSettings, getDomain, resetSettings, getPassword, passwordSettings } from './CuuTruyenSetting';
 
 const DEFAULT_DOMAIN = 'https://cuutruyen.moe';
 
@@ -101,7 +101,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
 
         if (!csrfToken) return false;
 
-        const password = '5';
+        const password = await getPassword(this.stateManager);
         const baseUrl = await this.getBaseUrl();
 
         const submitPayload = {
@@ -371,7 +371,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         return App.createDUISection({
             id: 'main',
             header: 'Cài đặt Nguồn Truyện',
-            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
+            rows: async () => [domainSettings(this.stateManager), passwordSettings(this.stateManager), resetSettings(this.stateManager)],
             isHidden: false,
         });
     }

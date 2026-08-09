@@ -161,12 +161,20 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             type: HomeSectionType.singleRowNormal,
         });
 
+        const viewsSection = App.createHomeSection({
+            id: 'views',
+            title: 'TRUYỆN XEM NHIỀU',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
         // 2. Callback khung rỗng ngay lập tức
         sectionCallback(featuredSection);
         sectionCallback(staffPickSection);
         sectionCallback(newUpdatedSection);
-        sectionCallback(newReupSection);
+        sectionCallback(viewsSection);
         sectionCallback(randomSection);
+        sectionCallback(newReupSection);
 
         // 3. Xử lý bất đồng bộ độc lập
 
@@ -223,11 +231,10 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(newUpdatedSection);
         })();
 
-        // Nguồn 4: Truyện Reup Mới
-        const fetchNewReup = (async () => {
-            const apiUrl = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45&reup_only=true`;
+        // Nguồn 4: Xem Nhiều
+        const fetchViews = (async () => {
             const request = App.createRequest({
-                url: apiUrl,
+                url: `${baseUrl}/api/manga?sort=views&exclude_genre=196&page=1&page_size=45`,
                 method: 'GET',
                 headers: {
                     Referer: `${baseUrl}/lib`,
@@ -237,8 +244,9 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             const response = await this.requestManager.schedule(request, 1);
             const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
 
-            newReupSection.items = this.parser.parseNewReupSection(json);
-            sectionCallback(newReupSection);
+            viewsSection.items = this.parser.parseSearchResults(json);
+
+            sectionCallback(viewsSection);
         })();
 
         // Nguồn 5: Hôm Nay Đọc Gì? (Random 10 truyện)
@@ -260,8 +268,26 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(randomSection);
         })();
 
+        // Nguồn 6: Truyện Reup Mới
+        const fetchNewReup = (async () => {
+            const apiUrl = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45&reup_only=true`;
+            const request = App.createRequest({
+                url: apiUrl,
+                method: 'GET',
+                headers: {
+                    Referer: `${baseUrl}/lib`,
+                },
+            });
+
+            const response = await this.requestManager.schedule(request, 1);
+            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+
+            newReupSection.items = this.parser.parseNewReupSection(json);
+            sectionCallback(newReupSection);
+        })();
+
         // Đợi tất cả request hoàn thành
-        await Promise.allSettled([fetchHome, fetchStaffPick, fetchNewUpdated, fetchNewReup, fetchRandom]);
+        await Promise.allSettled([fetchHome, fetchStaffPick, fetchNewUpdated, fetchViews, fetchRandom, fetchNewReup]);
     }
 
     // Cache lưu Promise HTML theo mangaId
@@ -421,9 +447,7 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             apiUrl = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=${page}&page_size=${pageSize}&reup_only=true`;
         } else {
             const sortMapping: Record<string, string> = {
-                hot: '-view',
-                old: 'created_at',
-                bad: 'view',
+                views: 'views',
             };
 
             const sortParam = sortMapping[homepageSectionId];

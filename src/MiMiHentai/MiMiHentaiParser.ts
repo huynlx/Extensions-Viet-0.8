@@ -442,11 +442,11 @@ export class Parser {
             sections.push(App.createTagSection({ id: 'albums', label: 'Album nổi bật', tags: albumTags }));
         }
 
+        sections.push(App.createTagSection({ id: 'sorts', label: 'Sắp xếp', tags: sortTags }));
+
         if (genreTags.length > 0) {
             sections.push(App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }));
         }
-
-        sections.push(App.createTagSection({ id: 'sorts', label: 'Sắp xếp', tags: sortTags }));
 
         return sections;
     }
