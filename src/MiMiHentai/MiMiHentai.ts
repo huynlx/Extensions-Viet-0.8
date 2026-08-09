@@ -330,6 +330,8 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
                     albumId = tagId.replace('album-', '');
                 } else if (tagId.startsWith('sort-')) {
                     sortParam = tagId.replace('sort-', '');
+                } else if (tagId.startsWith('sort=')) {
+                    sortParam = tagId.replace('sort=', '');
                 } else if (tagId.startsWith('parody-')) {
                     parodyId = tagId.replace('parody-', '');
                 } else if (tagId.startsWith('character-')) {
@@ -347,23 +349,38 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
         const params: string[] = [];
 
         if (albumId) {
+            // Lấy truyện theo Album
             apiUrl = `https://mimihentai.moe/api/albums/${albumId}/manga`;
             if (sortParam) params.push(`sort=${sortParam}`);
         } else if (parodyId) {
+            // Lấy truyện theo Parody
             apiUrl = `https://mimihentai.moe/api/manga/by-parody/${parodyId}`;
             if (sortParam) params.push(`sort=${sortParam}`);
         } else if (characterId) {
+            // Lấy truyện theo Nhân vật
             apiUrl = `https://mimihentai.moe/api/manga/by-character/${characterId}`;
             if (sortParam) params.push(`sort=${sortParam}`);
-        } else if (query.title?.trim() || genreIds.length > 0) {
+        } else if (query.title?.trim() && genreIds.length === 0) {
+            // Chỉ có TỪ KHÓA (không chọn thể loại) -> dùng /api/manga/search với tham số `q`
+            apiUrl = 'https://mimihentai.moe/api/manga/search';
+            params.push(`q=${encodeURIComponent(query.title.trim())}`);
+            if (sortParam) {
+                params.push(`sort=${sortParam}`);
+            }
+        } else if (genreIds.length === 1 && !query.title?.trim()) {
+            // Chỉ chọn 1 THỂ LOẠI (không có từ khóa) -> dùng /api/manga/by-genre/{id}
+            apiUrl = `https://mimihentai.moe/api/manga/by-genre/${genreIds[0]}`;
+            if (sortParam) {
+                params.push(`sort=${sortParam}`);
+            }
+        } else if (genreIds.length > 0) {
+            // Tìm kiếm NÂNG CAO (vừa có từ khóa vừa chọn thể loại, hoặc chọn nhiều thể loại)
             apiUrl = 'https://mimihentai.moe/api/manga/advanced-search';
 
             if (query.title?.trim()) {
                 params.push(`title=${encodeURIComponent(query.title.trim())}`);
             }
-            if (genreIds.length > 0) {
-                params.push(`genre=${genreIds.join(',')}`);
-            }
+            params.push(`genre=${genreIds.join(',')}`);
             if (sortParam) {
                 params.push(`sort=${sortParam}`);
             }
@@ -375,11 +392,9 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             }
         }
 
-        // Các tham số phân trang chung
+        // Các tham số chung
         params.push(`page=${page}`);
         params.push(`page_size=${pageSize}`);
-
-        // Tự động add exclude_genre=196 khi tìm kiếm
         params.push('exclude_genre=196');
 
         const fullUrl = `${apiUrl}?${params.join('&')}`;
@@ -400,8 +415,6 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
 
         // 4. Parse kết quả danh sách truyện
         const manga = this.parser.parseSearchResults(json);
-
-        // Xử lý phân trang chính xác
         const hasNextPage = true;
 
         return App.createPagedResults({
