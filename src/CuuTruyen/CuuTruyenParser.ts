@@ -1,6 +1,6 @@
-import { Chapter, SourceManga, Tag, TagSection, PartialSourceManga } from '@paperback/types';
-import genreTagsJson from './includes/genreTags.json';
+import { Chapter, PartialSourceManga, SourceManga, Tag, TagSection } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
+import genreTagsJson from './includes/genreTags.json';
 
 export class Parser {
     parseFeaturedSection($: CheerioAPI): PartialSourceManga[] {
@@ -46,38 +46,53 @@ export class Parser {
     }
 
     parseHotSection($: CheerioAPI): PartialSourceManga[] {
-        const featuredItems: PartialSourceManga[] = [];
+        const recommendItems: PartialSourceManga[] = [];
 
-        $('#div_qq .list_grid li').each((_: any, manga: any) => {
-            const title = $('.book_name > h3 > a', manga).text().trim();
+        // 1. Định vị thẻ h5 chứa chữ "Truyện đề cử" và tìm lên container cha (.flex-col)
+        const $section = $('h5')
+            .filter((_: any, el: any) => $(el).text().includes('Truyện đề cử'))
+            .closest('.flex-col');
 
-            // 1. Lấy Href & Extract Manga ID
-            const id = $('.book_name > h3 > a', manga).attr('href')?.split('/').pop();
+        // 2. Chỉ bóc tách các truyện nằm TRONG khối section đó
+        $section.find('.grid > .w-full').each((_: any, manga: any) => {
+            const $manga = $(manga);
 
-            // 2. Lấy Image với Fallback linh hoạt (src -> data-fb -> data-ni -> Placeholder)
-            const imgEl = $('.book_avatar > a > img', manga);
-            let image = imgEl.attr('src') || imgEl.attr('data-fb') || imgEl.attr('data-ni') || 'https://i.imgur.com/GYUxEX8.png';
+            // Lấy Title & Manga ID
+            const $titleEl = $manga.find('a[href*="/truyen/"]');
+            const title = $titleEl.text().trim();
+            const href = $titleEl.attr('href') ?? '';
+            const id = href.split('/').filter(Boolean).pop();
 
-            // Đảm bảo URL ảnh hợp lệ (thêm protocol nếu thiếu)
+            // Lấy Image từ style background-image
+            const style = $manga.find('.cover-sm').attr('style') ?? $manga.find('[style*="background-image"]').attr('style') ?? '';
+            const imageMatch = style.match(/url\(['"]?(.*?)['"]?\)/i);
+            let image = imageMatch?.[1] ?? '';
+
+            if (!image) {
+                const imgEl = $manga.find('img');
+                image = imgEl.attr('src') || imgEl.attr('data-src') || 'https://i.imgur.com/GYUxEX8.png';
+            }
+
             if (image.startsWith('//')) {
                 image = `https:${image}`;
             }
 
-            const subtitle = $('.last_chapter > a', manga).text().trim();
+            // Lấy Subtitle (Mô tả ngắn)
+            const subtitle = $manga.find('span.break-all').text().trim();
 
             if (id && title) {
-                featuredItems.push(
+                recommendItems.push(
                     App.createPartialSourceManga({
                         mangaId: String(id),
                         image: String(image),
                         title: title,
-                        subtitle: subtitle,
+                        subtitle: subtitle || undefined,
                     })
                 );
             }
         });
 
-        return featuredItems;
+        return recommendItems;
     }
 
     parseSearchResults($: CheerioAPI): PartialSourceManga[] {
@@ -258,38 +273,11 @@ export class Parser {
         // 1. Thể loại truyện
         const genreTags = genreTagsJson.map(({ label, id }) => App.createTag({ label, id }));
 
-        // 2. Sắp xếp (Sort)
-        const sortTags: Tag[] = [
-            App.createTag({ id: '-updated_at', label: 'Mới cập nhật' }),
-            App.createTag({ id: '-created_at', label: 'Mới nhất' }),
-            App.createTag({ id: 'created_at', label: 'Cũ nhất' }),
-            App.createTag({ id: '-views', label: 'Xem nhiều' }),
-            App.createTag({ id: 'name', label: 'A-Z' }),
-            App.createTag({ id: '-name', label: 'Z-A' }),
-        ];
-
-        // 3. Trạng thái (Status)
-        const statusTags: Tag[] = [
-            App.createTag({ id: '2,1', label: 'Tất cả' }),
-            App.createTag({ id: '2', label: 'Đang tiến hành' }),
-            App.createTag({ id: '1', label: 'Đã hoàn thành' }),
-        ];
-
         return [
             App.createTagSection({
                 id: 'genres',
                 label: 'Thể Loại',
                 tags: genreTags,
-            }),
-            App.createTagSection({
-                id: 'sort',
-                label: 'Sắp xếp',
-                tags: sortTags,
-            }),
-            App.createTagSection({
-                id: 'status',
-                label: 'Trạng thái',
-                tags: statusTags,
             }),
         ];
     }

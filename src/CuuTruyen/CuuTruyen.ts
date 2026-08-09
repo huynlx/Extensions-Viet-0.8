@@ -187,9 +187,8 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         const sections = [
             App.createHomeSection({ id: 'featured', title: 'Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.featured }),
             App.createHomeSection({ id: 'new_updated', title: 'Mới Cập Nhật', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
-            App.createHomeSection({ id: 'top_week', title: 'Top Truyện Tuần', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
+            App.createHomeSection({ id: 'recommend', title: ' Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
             App.createHomeSection({ id: 'favorite', title: 'Xem nhiều', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
-            App.createHomeSection({ id: 'top_month', title: 'Top Truyện Tháng', containsMoreItems: true, type: HomeSectionType.singleRowLarge }),
             App.createHomeSection({ id: 'new_added', title: 'Mới Nhất', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
         ];
 
@@ -203,14 +202,11 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
                 case 'new_updated':
                     url = `${baseUrl}/tim-kiem?q=&sort=-updated_at&page=1`;
                     break;
-                case 'top_week':
+                case 'recommend':
                     url = `${baseUrl}`;
                     break;
                 case 'favorite':
                     url = `${baseUrl}/tim-kiem?q=&sort=-views&page=1`;
-                    break;
-                case 'top_month':
-                    url = `${baseUrl}`;
                     break;
                 case 'new_added':
                     url = `${baseUrl}/tim-kiem?q=&sort=-created_at&page=1`;
@@ -227,13 +223,10 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
                 case 'new_updated':
                     section.items = this.parser.parseSearchResults($);
                     break;
-                case 'top_week':
-                    section.items = this.parser.parseSearchResults($);
+                case 'recommend':
+                    section.items = this.parser.parseHotSection($);
                     break;
                 case 'favorite':
-                    section.items = this.parser.parseSearchResults($);
-                    break;
-                case 'top_month':
                     section.items = this.parser.parseSearchResults($);
                     break;
                 case 'new_added':
@@ -290,75 +283,29 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         const baseUrl = await this.getBaseUrl();
         const page = metadata?.page ?? 1;
 
-        const search = {
-            genres: '',
-            exgenres: '',
-            country: '0',
-            status: '-1',
-            minchapter: '0',
-            sort: '0',
-        };
+        const keyword = query.title?.trim() ?? '';
+        const genre = query.includedTags?.[0]?.id;
 
-        let rankingPath: string | undefined;
+        let fullUrl = '';
 
-        const extags = query.excludedTags?.map((tag) => tag.id) ?? [];
-        const exgenres: string[] = [];
-        for (const value of extags) {
-            if (value.indexOf('.') === -1) {
-                exgenres.push(value);
-            }
-        }
-
-        const tags = query.includedTags?.map((tag) => tag.id) ?? [];
-        const genres: string[] = [];
-        for (const value of tags) {
-            if (value.indexOf('.') === -1) {
-                genres.push(value);
-            } else {
-                const [key, val] = value.split('.');
-                switch (key) {
-                    case 'ranking':
-                        rankingPath = val;
-                        break;
-                    case 'minchapter':
-                        search.minchapter = String(val);
-                        break;
-                    case 'country':
-                        search.country = String(val);
-                        break;
-                    case 'sort':
-                        search.sort = String(val);
-                        break;
-                    case 'status':
-                        search.status = String(val);
-                        break;
-                }
-            }
-        }
-
-        search.genres = genres.join(',');
-        search.exgenres = exgenres.join(',');
-
-        let url = '';
-        let param = '';
-
-        if (rankingPath) {
-            url = `${baseUrl}/${rankingPath}/trang-${page}`;
+        if (keyword) {
+            // 1. Nếu có nhập từ khóa -> Gọi URL Tìm kiếm từ khóa
+            fullUrl = `${baseUrl}/tim-kiem?keyword=${encodeURIComponent(keyword)}&page=${page}`;
+        } else if (genre) {
+            // 2. Nếu không có từ khóa và chọn 1 thể loại -> Gọi URL Thể loại
+            fullUrl = `${baseUrl}/the-loai/${genre}?page=${page}`;
         } else {
-            const paramExgenres = search.exgenres ? `&notcategory=${search.exgenres}` : '';
-            url = `${baseUrl}/${query.title ? 'tim-kiem' : 'tim-kiem-nang-cao'}/trang-${page}`;
-            param =
-                `?q=${encodeURIComponent(query.title ?? '')}` +
-                `&category=${search.genres}${paramExgenres}&country=${search.country}&status=${search.status}&minchapter=${search.minchapter}&sort=${search.sort}`;
+            // 3. Mặc định nếu không nhập gì -> Lấy danh sách chung
+            fullUrl = `${baseUrl}/tim-kiem?page=${page}`;
         }
 
-        const $ = await this.DOMHTML(url + param);
+        console.log('Search URL:', fullUrl);
+        const $ = await this.DOMHTML(fullUrl);
         const tiles = this.parser.parseSearchResults($);
-        metadata = !isLastPage($) ? { page: page + 1 } : undefined;
 
         return App.createPagedResults({
             results: tiles,
-            metadata,
+            metadata: { page: page + 1 },
         });
     }
 
