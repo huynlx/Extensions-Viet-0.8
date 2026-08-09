@@ -19,15 +19,14 @@ import {
     SourceManga,
     TagSection,
 } from '@paperback/types';
-
 import { CheerioAPI } from 'cheerio';
-import { isLastPage, Parser } from './CuuTruyenParser';
+import { Parser } from './CuuTruyenParser';
 import { domainSettings, getDomain, resetSettings } from './CuuTruyenSetting';
 
 const DEFAULT_DOMAIN = 'https://cuutruyen.moe';
 
 export const CuuTruyenInfo: SourceInfo = {
-    version: '1.0.1',
+    version: '1.0.2',
     name: 'CuuTruyen',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
@@ -50,13 +49,11 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
 
     constructor(private cheerio: CheerioAPI) {}
 
-    // Lấy domain động từ setting và chuẩn hóa bỏ dấu '/' ở cuối
     private async getBaseUrl(): Promise<string> {
         const domain = await getDomain(this.stateManager);
         return domain.replace(/\/+$/, '');
     }
 
-    // 1. Giảm requestsPerSecond xuống 1 để tránh bị rate-limit
     readonly requestManager = App.createRequestManager({
         requestsPerSecond: 1,
         requestTimeout: 50000,
@@ -80,9 +77,10 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
 
     async submitConfiguredPassword(html: string, currentUrl: string): Promise<boolean> {
         const wireDataMatch = html.match(/wire:initial-data="([^"]+)"/);
-        if (!wireDataMatch) return false;
+        const rawWireData = wireDataMatch?.[1];
+        if (!rawWireData) return false;
 
-        const rawJson = (wireDataMatch?.[1] ?? '')
+        const rawJson = rawWireData
             .replace(/&quot;/g, '"')
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
@@ -99,7 +97,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         const serverMemo = wireData.serverMemo;
 
         const csrfMatch = html.match(/livewire_token\s*=\s*'([^']+)'/) || html.match(/name="csrf-token"\s+content="([^"]+)"/);
-        const csrfToken = csrfMatch ? csrfMatch[1] : '';
+        const csrfToken = csrfMatch?.[1] ?? '';
 
         if (!csrfToken) return false;
 
@@ -137,7 +135,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
                 'X-CSRF-TOKEN': csrfToken,
                 'X-Livewire': 'true',
                 Accept: 'text/html, application/xhtml+xml',
-                Referer: currentUrl, // Dùng Referer của trang hiện tại thay vì hardcode trang chủ
+                Referer: currentUrl,
             },
             data: JSON.stringify(submitPayload),
         });
@@ -173,49 +171,61 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
 
     async getMangaShareUrl(mangaId: string): Promise<string> {
         const baseUrl = await this.getBaseUrl();
-        return `${baseUrl}/truyen-tranh/${mangaId}`;
+        return `${baseUrl}/truyen/${mangaId}`;
     }
 
     async getSearchTags(): Promise<TagSection[]> {
         return this.parser.parseTags();
     }
 
+    // 🎯 TỐI ƯU: Đã gom request trùng giữa `featured` và `recommend`
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const baseUrl = await this.getBaseUrl();
 
-        // 1. Khởi tạo các Section
         const sections = [
             App.createHomeSection({ id: 'featured', title: 'Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.featured }),
             App.createHomeSection({ id: 'new_updated', title: 'Mới Cập Nhật', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
-            App.createHomeSection({ id: 'recommend', title: ' Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
-            App.createHomeSection({ id: 'favorite', title: 'Xem nhiều', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
+            App.createHomeSection({ id: 'recommend', title: 'Truyện Nổi Bật', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
+            App.createHomeSection({ id: 'favorite', title: 'Xem Nhiều', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
             App.createHomeSection({ id: 'new_added', title: 'Mới Nhất', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
         ];
 
+        // Khai báo trước với UI
         for (const section of sections) {
             sectionCallback(section);
+        }
+
+        // Cache DOM tạm thời theo URL trong lần tải Trang chủ
+        const domCache = new Map<string, Promise<CheerioAPI>>();
+        const fetchCachedDOM = (url: string): Promise<CheerioAPI> => {
+            if (!domCache.has(url)) {
+                domCache.set(url, this.DOMHTML(url));
+            }
+            return domCache.get(url)!;
+        };
+
+        for (const section of sections) {
             let url: string;
             switch (section.id) {
                 case 'featured':
-                    url = `${baseUrl}`;
-                    break;
-                case 'new_updated':
-                    url = `${baseUrl}/tim-kiem?q=&sort=-updated_at&page=1`;
-                    break;
                 case 'recommend':
                     url = `${baseUrl}`;
                     break;
+                case 'new_updated':
+                    url = `${baseUrl}/tim-kiem?sort=-updated_at&page=1`;
+                    break;
                 case 'favorite':
-                    url = `${baseUrl}/tim-kiem?q=&sort=-views&page=1`;
+                    url = `${baseUrl}/tim-kiem?sort=-views&page=1`;
                     break;
                 case 'new_added':
-                    url = `${baseUrl}/tim-kiem?q=&sort=-created_at&page=1`;
+                    url = `${baseUrl}/tim-kiem?sort=-created_at&page=1`;
                     break;
                 default:
-                    throw new Error('Invalid homepage section ID');
+                    continue;
             }
 
-            const $ = await this.DOMHTML(url);
+            const $ = await fetchCachedDOM(url);
+
             switch (section.id) {
                 case 'featured':
                     section.items = this.parser.parseFeaturedSection($);
@@ -233,6 +243,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
                     section.items = this.parser.parseSearchResults($);
                     break;
             }
+
             sectionCallback(section);
         }
     }
@@ -289,17 +300,13 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         let fullUrl = '';
 
         if (keyword) {
-            // 1. Nếu có nhập từ khóa -> Gọi URL Tìm kiếm từ khóa
             fullUrl = `${baseUrl}/tim-kiem?keyword=${encodeURIComponent(keyword)}&page=${page}`;
         } else if (genre) {
-            // 2. Nếu không có từ khóa và chọn 1 thể loại -> Gọi URL Thể loại
             fullUrl = `${baseUrl}/the-loai/${genre}?page=${page}`;
         } else {
-            // 3. Mặc định nếu không nhập gì -> Lấy danh sách chung
             fullUrl = `${baseUrl}/tim-kiem?page=${page}`;
         }
 
-        console.log('Search URL:', fullUrl);
         const $ = await this.DOMHTML(fullUrl);
         const tiles = this.parser.parseSearchResults($);
 
@@ -312,7 +319,6 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
     async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const baseUrl = await this.getBaseUrl();
         const page: number = metadata?.page ?? 1;
-        let param = '';
         let url = '';
 
         switch (homepageSectionId) {
@@ -332,14 +338,12 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
                 throw new Error("Requested to getViewMoreItems for a section ID which doesn't exist");
         }
 
-        // 3. Sửa lại cú pháp await thừa
-        const $ = await this.DOMHTML(url, param);
+        const $ = await this.DOMHTML(url);
         const manga = this.parser.parseSearchResults($);
-        metadata = { page: page + 1 };
 
         return App.createPagedResults({
             results: manga,
-            metadata,
+            metadata: { page: page + 1 },
         });
     }
 
