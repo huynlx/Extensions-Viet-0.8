@@ -2,31 +2,6 @@ import { Chapter, SourceManga, Tag, TagSection, PartialSourceManga } from '@pape
 import { CheerioAPI } from 'cheerio';
 
 export class Parser {
-    protected convertTime(timeAgo: string): Date {
-        let trimmed = Number((/\d*/.exec(timeAgo) ?? [])[0]);
-        trimmed = trimmed === 0 && timeAgo.includes('a') ? 1 : trimmed;
-
-        if (timeAgo.includes('giây') || timeAgo.includes('secs')) {
-            return new Date(Date.now() - trimmed * 1000);
-        } else if (timeAgo.includes('phút')) {
-            return new Date(Date.now() - trimmed * 60000);
-        } else if (timeAgo.includes('giờ')) {
-            return new Date(Date.now() - trimmed * 3600000);
-        } else if (timeAgo.includes('ngày')) {
-            return new Date(Date.now() - trimmed * 86400000);
-        } else if (timeAgo.includes('năm')) {
-            return new Date(Date.now() - trimmed * 31556952000);
-        } else if (timeAgo.includes(':')) {
-            const [H, D] = timeAgo.split(' ');
-            const fixD = String(D).split('/');
-            const finalD = `${fixD[1]}/${fixD[0]}/${new Date().getFullYear()}`;
-            return new Date(`${finalD} ${H}`);
-        } else {
-            const split = timeAgo.split('/');
-            return new Date(`${split[1]}/${split[0]}/${split[2]}`);
-        }
-    }
-
     parseFeaturedSection($: CheerioAPI): PartialSourceManga[] {
         const featuredItems: PartialSourceManga[] = [];
         const processedIds = new Set<string>();

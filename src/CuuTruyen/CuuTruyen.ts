@@ -79,7 +79,36 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         },
     });
 
-    async submitConfiguredPassword(html: string): Promise<boolean> {
+    // readonly requestManager = App.createRequestManager({
+    //     requestsPerSecond: 2, // Đã có micro-delay ở trên nên nâng lại lên 2 được
+    //     requestTimeout: 50000,
+    //     interceptor: {
+    //         interceptRequest: async (request: Request): Promise<Request> => {
+    //             const baseUrl = await this.getBaseUrl();
+    //             request.headers = {
+    //                 ...(request.headers ?? {}),
+    //                 referer: `${baseUrl}/`,
+    //                 origin: `${baseUrl}`,
+    //                 accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    //                 'accept-language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+    //                 'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    //                 'sec-ch-ua-mobile': '?0',
+    //                 'sec-ch-ua-platform': '"Windows"',
+    //                 'sec-fetch-dest': 'document',
+    //                 'sec-fetch-mode': 'navigate',
+    //                 'sec-fetch-site': 'same-origin',
+    //                 'sec-fetch-user': '?1',
+    //                 'user-agent': await this.requestManager.getDefaultUserAgent(),
+    //             };
+    //             return request;
+    //         },
+    //         interceptResponse: async (response: Response): Promise<Response> => {
+    //             return response;
+    //         },
+    //     },
+    // });
+
+    async submitConfiguredPassword(html: string, currentUrl: string): Promise<boolean> {
         const wireDataMatch = html.match(/wire:initial-data="([^"]+)"/);
         if (!wireDataMatch) return false;
 
@@ -138,7 +167,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
                 'X-CSRF-TOKEN': csrfToken,
                 'X-Livewire': 'true',
                 Accept: 'text/html, application/xhtml+xml',
-                Referer: `${baseUrl}/`,
+                Referer: currentUrl, // Dùng Referer của trang hiện tại thay vì hardcode trang chủ
             },
             data: JSON.stringify(submitPayload),
         });
@@ -147,17 +176,12 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         return response.status === 200;
     }
 
-    async getMangaShareUrl(mangaId: string): Promise<string> {
-        const baseUrl = await this.getBaseUrl();
-        return `${baseUrl}/truyen-tranh/${mangaId}`;
-    }
-
     async DOMHTML(url: string, param?: any): Promise<CheerioAPI> {
         const req = App.createRequest({
             url: url,
             method: 'GET',
             headers: {
-                Referer: `${await this.getBaseUrl()}/`,
+                Referer: url,
             },
             param,
         });
@@ -166,7 +190,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         let html = (res.data as string) ?? '';
 
         if (html.includes('wire:initial-data') && html.includes('enter-secret')) {
-            const success = await this.submitConfiguredPassword(html);
+            const success = await this.submitConfiguredPassword(html, url);
 
             if (success) {
                 res = await this.requestManager.schedule(req, 1);
@@ -177,6 +201,11 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         return this.cheerio.load(html);
     }
 
+    async getMangaShareUrl(mangaId: string): Promise<string> {
+        const baseUrl = await this.getBaseUrl();
+        return `${baseUrl}/truyen-tranh/${mangaId}`;
+    }
+
     async getSearchTags(): Promise<TagSection[]> {
         const baseUrl = await this.getBaseUrl();
         const url = `${baseUrl}`;
@@ -184,10 +213,16 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         return this.parser.parseTags($);
     }
 
+    // Helper tạo khoảng trễ
+    delay(ms: number) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
         const baseUrl = await this.getBaseUrl();
 
-        const sections: HomeSection[] = [
+        // 1. Khởi tạo các Section
+        const sections = [
             App.createHomeSection({ id: 'featured', title: 'Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.featured }),
             App.createHomeSection({ id: 'new_updated', title: 'Mới Cập Nhật', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
             App.createHomeSection({ id: 'top_week', title: 'Top Truyện Tuần', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
@@ -196,45 +231,114 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
             App.createHomeSection({ id: 'new_added', title: 'Mới Nhất', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
         ];
 
-        const urlMap: Record<string, string> = {
-            featured: `${baseUrl}`,
-            top_week: `${baseUrl}`,
-            top_month: `${baseUrl}`,
-            new_updated: `${baseUrl}/tim-kiem?sort=-updated_at&page=1`,
-            favorite: `${baseUrl}/tim-kiem?sort=-views&page=1`,
-            new_added: `${baseUrl}/tim-kiem?sort=-created_at&page=1`,
-        };
-
-        // Emit tất cả section rỗng ngay lập tức để UI dựng Skeleton Layout
         for (const section of sections) {
+            sectionCallback(section);
+            let url: string;
+            switch (section.id) {
+                case 'featured':
+                    url = `${baseUrl}`;
+                    break;
+                case 'new_updated':
+                    url = `${baseUrl}/tim-kiem?q=&sort=-updated_at&page=1`;
+                    break;
+                case 'top_week':
+                    url = `${baseUrl}`;
+                    break;
+                case 'favorite':
+                    url = `${baseUrl}/tim-kiem?q=&sort=-views&page=1`;
+                    break;
+                case 'top_month':
+                    url = `${baseUrl}`;
+                    break;
+                case 'new_added':
+                    url = `${baseUrl}/tim-kiem?q=&sort=-created_at&page=1`;
+                    break;
+                default:
+                    throw new Error('Invalid homepage section ID');
+            }
+
+            const $ = await this.DOMHTML(url);
+            switch (section.id) {
+                case 'featured':
+                    section.items = this.parser.parseFeaturedSection($);
+                    break;
+                case 'new_updated':
+                    section.items = this.parser.parseSearchResults($);
+                    break;
+                case 'top_week':
+                    section.items = this.parser.parseSearchResults($);
+                    break;
+                case 'favorite':
+                    section.items = this.parser.parseSearchResults($);
+                    break;
+                case 'top_month':
+                    section.items = this.parser.parseSearchResults($);
+                    break;
+                case 'new_added':
+                    section.items = this.parser.parseSearchResults($);
+                    break;
+            }
             sectionCallback(section);
         }
 
-        const urlPromiseMap = new Map<string, Promise<CheerioAPI>>();
+        // // Render ngay giao diện Skeleton
+        // Object.values(sections).forEach(sectionCallback);
 
-        const sectionParsers: Record<string, ($: CheerioAPI) => PartialSourceManga[]> = {
-            featured: ($) => this.parser.parseFeaturedSection($),
-        };
+        // // 2. Định nghĩa các Task kèm khoảng trễ (delayMs) và bổ sung `q=` vào URL
+        // const tasks = [
+        //     {
+        //         name: 'Task 1 (Trang chủ)',
+        //         url: `${baseUrl}`,
+        //         delayMs: 0,
+        //         handlers: [
+        //             { section: sections.featured, parser: ($: CheerioAPI) => this.parser.parseFeaturedSection($) },
+        //             { section: sections.top_week, parser: ($: CheerioAPI) => this.parser.parseSearchResults($) },
+        //             { section: sections.top_month, parser: ($: CheerioAPI) => this.parser.parseSearchResults($) },
+        //         ],
+        //     },
+        //     {
+        //         name: 'Task 2 (Mới cập nhật)',
+        //         url: `${baseUrl}/tim-kiem?q=&sort=-updated_at&page=1`,
+        //         delayMs: 500,
+        //         handlers: [{ section: sections.new_updated, parser: ($: CheerioAPI) => this.parser.parseSearchResults($) }],
+        //     },
+        //     {
+        //         name: 'Task 3 (Xem nhiều)',
+        //         url: `${baseUrl}/tim-kiem?q=&sort=-views&page=1`,
+        //         delayMs: 1000,
+        //         handlers: [{ section: sections.favorite, parser: ($: CheerioAPI) => this.parser.parseSearchResults($) }],
+        //     },
+        //     {
+        //         name: 'Task 4 (Mới nhất)',
+        //         url: `${baseUrl}/tim-kiem?q=&sort=-created_at&page=1`,
+        //         delayMs: 1500,
+        //         handlers: [{ section: sections.new_added, parser: ($: CheerioAPI) => this.parser.parseSearchResults($) }],
+        //     },
+        // ];
 
-        // 2. Chạy tuần tự (sequential) thay vì Promise.allSettled để tránh bị Rate Limit / Spam HTTP Request
-        for (const section of sections) {
-            const url = urlMap[section.id];
-            if (!url) continue;
+        // // 3. Chạy tất cả các Task ĐỘC LẬP bằng Promise.allSettled
+        // const fetchPromises = tasks.map(async (task) => {
+        //     try {
+        //         if (task.delayMs > 0) {
+        //             await this.delay(task.delayMs);
+        //         }
 
-            try {
-                if (!urlPromiseMap.has(url)) {
-                    urlPromiseMap.set(url, this.DOMHTML(url));
-                }
+        //         console.log(`[CuuTruyen] Start ${task.name}: ${task.url}`);
+        //         const $ = await this.DOMHTML(task.url);
 
-                const $ = await urlPromiseMap.get(url)!;
-                const parseFn = sectionParsers[section.id] ?? (($) => this.parser.parseSearchResults($));
+        //         for (const handler of task.handlers) {
+        //             const items = handler.parser($);
+        //             console.log(`[CuuTruyen] ${task.name} -> ${handler.section.id}: Parsed ${items.length} items`);
 
-                section.items = parseFn($);
-                sectionCallback(section);
-            } catch (error) {
-                console.error(`Failed to load section [${section.id}]:`, error);
-            }
-        }
+        //             handler.section.items = items;
+        //             sectionCallback(handler.section); // Cập nhật ngay section đó lên UI
+        //         }
+        //     } catch (error) {
+        //         console.error(`[CuuTruyen] Failed ${task.name}:`, error);
+        //     }
+        // });
+
+        // await Promise.allSettled(fetchPromises);
     }
 
     private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
