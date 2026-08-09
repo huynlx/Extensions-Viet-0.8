@@ -175,7 +175,7 @@ export class Parser {
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
             const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
 
-            if (mangaId && title) {
+            if (mangaId) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,

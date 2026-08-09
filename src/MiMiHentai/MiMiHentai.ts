@@ -330,8 +330,6 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
                     albumId = tagId.replace('album-', '');
                 } else if (tagId.startsWith('sort-')) {
                     sortParam = tagId.replace('sort-', '');
-                } else if (tagId.startsWith('sort=')) {
-                    sortParam = tagId.replace('sort=', '');
                 } else if (tagId.startsWith('parody-')) {
                     parodyId = tagId.replace('parody-', '');
                 } else if (tagId.startsWith('character-')) {
@@ -368,18 +366,12 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             }
             if (sortParam) {
                 params.push(`sort=${sortParam}`);
-                if (sortParam === 'title') {
-                    params.push('order=asc');
-                }
             }
         } else {
             // Sắp xếp danh mục chung (Mới cập nhật, A-Z, Xem nhiều, Theo dõi, Thích)
             apiUrl = 'https://mimihentai.moe/api/manga';
             if (sortParam) {
                 params.push(`sort=${sortParam}`);
-                if (sortParam === 'title') {
-                    params.push('order=asc');
-                }
             }
         }
 
