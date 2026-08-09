@@ -183,9 +183,9 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         const baseUrl = await this.getBaseUrl();
 
         const sections = [
-            App.createHomeSection({ id: 'featured', title: 'Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.featured }),
+            App.createHomeSection({ id: 'featured', title: 'Truyện Hot', containsMoreItems: false, type: HomeSectionType.featured }),
             App.createHomeSection({ id: 'new_updated', title: 'Mới Cập Nhật', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
-            App.createHomeSection({ id: 'recommend', title: 'Truyện Nổi Bật', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
+            App.createHomeSection({ id: 'recommend', title: 'Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
             App.createHomeSection({ id: 'favorite', title: 'Xem Nhiều', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
             App.createHomeSection({ id: 'new_added', title: 'Mới Nhất', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
         ];
