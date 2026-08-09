@@ -82,7 +82,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         const wireDataMatch = html.match(/wire:initial-data="([^"]+)"/);
         if (!wireDataMatch) return false;
 
-        const rawJson = wireDataMatch[1]
+        const rawJson = (wireDataMatch?.[1] ?? '')
             .replace(/&quot;/g, '"')
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
@@ -177,15 +177,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
     }
 
     async getSearchTags(): Promise<TagSection[]> {
-        const baseUrl = await this.getBaseUrl();
-        const url = `${baseUrl}`;
-        const $ = await this.DOMHTML(url);
-        return this.parser.parseTags($);
-    }
-
-    // Helper tạo khoảng trễ
-    delay(ms: number) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
+        return this.parser.parseTags();
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {

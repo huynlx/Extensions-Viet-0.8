@@ -1,0 +1,682 @@
+[
+  {
+    "label": "4 koma",
+    "id": "4-koma"
+  },
+  {
+    "label": "action",
+    "id": "action"
+  },
+  {
+    "label": "adaption",
+    "id": "adaption"
+  },
+  {
+    "label": "adventure",
+    "id": "adventure"
+  },
+  {
+    "label": "age gap",
+    "id": "age-gap"
+  },
+  {
+    "label": "ai translate",
+    "id": "ai-translate"
+  },
+  {
+    "label": "aliens",
+    "id": "aliens"
+  },
+  {
+    "label": "ẩm thực",
+    "id": "am-thuc"
+  },
+  {
+    "label": "animals",
+    "id": "animals"
+  },
+  {
+    "label": "anime",
+    "id": "anime"
+  },
+  {
+    "label": "anthology",
+    "id": "anthology"
+  },
+  {
+    "label": "atlus",
+    "id": "atlus"
+  },
+  {
+    "label": "awa",
+    "id": "awa"
+  },
+  {
+    "label": "award winning",
+    "id": "award-winning"
+  },
+  {
+    "label": "bạo lực",
+    "id": "bao-luc"
+  },
+  {
+    "label": "bí ẩn",
+    "id": "bi-an"
+  },
+  {
+    "label": "bi kịch",
+    "id": "bi-kich"
+  },
+  {
+    "label": "cảnh sát",
+    "id": "canh-sat"
+  },
+  {
+    "label": "chất lượng cao",
+    "id": "chat-luong-cao"
+  },
+  {
+    "label": "chính trị",
+    "id": "chinh-tri"
+  },
+  {
+    "label": "chuyển sinh",
+    "id": "chuyen-sinh"
+  },
+  {
+    "label": "chuyển thể",
+    "id": "chuyen-the"
+  },
+  {
+    "label": "có màu",
+    "id": "co-mau"
+  },
+  {
+    "label": "comedy",
+    "id": "comedy"
+  },
+  {
+    "label": "comic",
+    "id": "comic"
+  },
+  {
+    "label": "công sở",
+    "id": "cong-so"
+  },
+  {
+    "label": "cooking",
+    "id": "cooking"
+  },
+  {
+    "label": "crime",
+    "id": "crime"
+  },
+  {
+    "label": "crossdressing",
+    "id": "crossdressing"
+  },
+  {
+    "label": "dark fantasy",
+    "id": "dark-fantasy"
+  },
+  {
+    "label": "databook",
+    "id": "databook"
+  },
+  {
+    "label": "delinquents",
+    "id": "delinquents"
+  },
+  {
+    "label": "demon",
+    "id": "demon"
+  },
+  {
+    "label": "demons",
+    "id": "demons"
+  },
+  {
+    "label": "doujinshi",
+    "id": "doujinshi"
+  },
+  {
+    "label": "drama",
+    "id": "drama"
+  },
+  {
+    "label": "drop",
+    "id": "drop"
+  },
+  {
+    "label": "du hành thời gian",
+    "id": "du-hanh-thoi-gian"
+  },
+  {
+    "label": "đã có dấu răng của assmin cứu truyện",
+    "id": "da-co-dau-rang-cua-assmin-cuu-truyen"
+  },
+  {
+    "label": "đã hoàn thành",
+    "id": "da-hoan-thanh"
+  },
+  {
+    "label": "đang tiến hành",
+    "id": "dang-tien-hanh"
+  },
+  {
+    "label": "đời thường",
+    "id": "doi-thuong"
+  },
+  {
+    "label": "động vật",
+    "id": "dong-vat"
+  },
+  {
+    "label": "ecchi",
+    "id": "ecchi"
+  },
+  {
+    "label": "family",
+    "id": "family"
+  },
+  {
+    "label": "fantasy",
+    "id": "fantasy"
+  },
+  {
+    "label": "food",
+    "id": "food"
+  },
+  {
+    "label": "full color",
+    "id": "full-color"
+  },
+  {
+    "label": "game",
+    "id": "game"
+  },
+  {
+    "label": "gender bender",
+    "id": "gender-bender"
+  },
+  {
+    "label": "genderswap",
+    "id": "genderswap"
+  },
+  {
+    "label": "ghosts",
+    "id": "ghosts"
+  },
+  {
+    "label": "giật gân",
+    "id": "giat-gan"
+  },
+  {
+    "label": "girl love",
+    "id": "girl-love"
+  },
+  {
+    "label": "gl",
+    "id": "gl"
+  },
+  {
+    "label": "gore",
+    "id": "gore"
+  },
+  {
+    "label": "gyaru",
+    "id": "gyaru"
+  },
+  {
+    "label": "hài hước",
+    "id": "hai-huoc"
+  },
+  {
+    "label": "hành động",
+    "id": "hanh-dong"
+  },
+  {
+    "label": "harem",
+    "id": "harem"
+  },
+  {
+    "label": "hậu tận thế",
+    "id": "hau-tan-the"
+  },
+  {
+    "label": "hệ",
+    "id": "he"
+  },
+  {
+    "label": "hệ thống",
+    "id": "he-thong"
+  },
+  {
+    "label": "historical",
+    "id": "historical"
+  },
+  {
+    "label": "học đường",
+    "id": "hoc-duong"
+  },
+  {
+    "label": "horror",
+    "id": "horror"
+  },
+  {
+    "label": "idol",
+    "id": "idol"
+  },
+  {
+    "label": "incest",
+    "id": "incest"
+  },
+  {
+    "label": "isekai",
+    "id": "isekai"
+  },
+  {
+    "label": "josei",
+    "id": "josei"
+  },
+  {
+    "label": "khoa học",
+    "id": "khoa-hoc"
+  },
+  {
+    "label": "khoa học viễn tưởng",
+    "id": "khoa-hoc-vien-tuong"
+  },
+  {
+    "label": "khỏa thân",
+    "id": "khoa-than"
+  },
+  {
+    "label": "kinh dị",
+    "id": "kinh-di"
+  },
+  {
+    "label": "lãng mạn",
+    "id": "lang-man"
+  },
+  {
+    "label": "lgbt",
+    "id": "lgbt"
+  },
+  {
+    "label": "lịch sử",
+    "id": "lich-su"
+  },
+  {
+    "label": "loạn luân",
+    "id": "loan-luan"
+  },
+  {
+    "label": "loli",
+    "id": "loli"
+  },
+  {
+    "label": "long strip",
+    "id": "long-strip"
+  },
+  {
+    "label": "magic",
+    "id": "magic"
+  },
+  {
+    "label": "magical girls",
+    "id": "magical-girls"
+  },
+  {
+    "label": "manga",
+    "id": "manga"
+  },
+  {
+    "label": "manhua",
+    "id": "manhua"
+  },
+  {
+    "label": "manhwa",
+    "id": "manhwa"
+  },
+  {
+    "label": "martial arts",
+    "id": "martial-arts"
+  },
+  {
+    "label": "máu me",
+    "id": "mau-me"
+  },
+  {
+    "label": "mecha",
+    "id": "mecha"
+  },
+  {
+    "label": "medical",
+    "id": "medical"
+  },
+  {
+    "label": "miễn bản quyền",
+    "id": "mien-ban-quyen"
+  },
+  {
+    "label": "military",
+    "id": "military"
+  },
+  {
+    "label": "monster girls",
+    "id": "monster-girls"
+  },
+  {
+    "label": "monsters",
+    "id": "monsters"
+  },
+  {
+    "label": "music",
+    "id": "music"
+  },
+  {
+    "label": "mystery",
+    "id": "mystery"
+  },
+  {
+    "label": "nam biến nữ",
+    "id": "nam-bien-nu"
+  },
+  {
+    "label": "nam giả nữ",
+    "id": "nam-gia-nu"
+  },
+  {
+    "label": "nam x nam",
+    "id": "nam-x-nam"
+  },
+  {
+    "label": "ninja",
+    "id": "ninja"
+  },
+  {
+    "label": "nsfw",
+    "id": "nsfw"
+  },
+  {
+    "label": "ntr",
+    "id": "ntr"
+  },
+  {
+    "label": "nữ giả nam",
+    "id": "nu-gia-nam"
+  },
+  {
+    "label": "office workers",
+    "id": "office-workers"
+  },
+  {
+    "label": "official colored",
+    "id": "official-colored"
+  },
+  {
+    "label": "oneshot",
+    "id": "oneshot"
+  },
+  {
+    "label": "phép thuật",
+    "id": "phep-thuat"
+  },
+  {
+    "label": "phiêu lưu",
+    "id": "phieu-luu"
+  },
+  {
+    "label": "philosophical",
+    "id": "philosophical"
+  },
+  {
+    "label": "police",
+    "id": "police"
+  },
+  {
+    "label": "pseudo incest",
+    "id": "pseudo-incest"
+  },
+  {
+    "label": "psychological",
+    "id": "psychological"
+  },
+  {
+    "label": "quái vật",
+    "id": "quai-vat"
+  },
+  {
+    "label": "quân đội",
+    "id": "quan-doi"
+  },
+  {
+    "label": "reincarnation",
+    "id": "reincarnation"
+  },
+  {
+    "label": "romance",
+    "id": "romance"
+  },
+  {
+    "label": "romcom",
+    "id": "romcom"
+  },
+  {
+    "label": "rpg",
+    "id": "rpg"
+  },
+  {
+    "label": "samurai",
+    "id": "samurai"
+  },
+  {
+    "label": "sát thủ",
+    "id": "sat-thu"
+  },
+  {
+    "label": "school life",
+    "id": "school-life"
+  },
+  {
+    "label": "sci fi",
+    "id": "sci-fi"
+  },
+  {
+    "label": "sega",
+    "id": "sega"
+  },
+  {
+    "label": "seinen",
+    "id": "seinen"
+  },
+  {
+    "label": "shoujo",
+    "id": "shoujo"
+  },
+  {
+    "label": "shoujo ai",
+    "id": "shoujo-ai"
+  },
+  {
+    "label": "shounen",
+    "id": "shounen"
+  },
+  {
+    "label": "siêu nhiên",
+    "id": "sieu-nhien"
+  },
+  {
+    "label": "sinh tồn",
+    "id": "sinh-ton"
+  },
+  {
+    "label": "slice of lìe",
+    "id": "slice-of-lie"
+  },
+  {
+    "label": "slice of life",
+    "id": "slice-of-life"
+  },
+  {
+    "label": "smut",
+    "id": "smut"
+  },
+  {
+    "label": "sport",
+    "id": "sport"
+  },
+  {
+    "label": "sports",
+    "id": "sports"
+  },
+  {
+    "label": "supernatural",
+    "id": "supernatural"
+  },
+  {
+    "label": "survival",
+    "id": "survival"
+  },
+  {
+    "label": "tâm lý",
+    "id": "tam-ly"
+  },
+  {
+    "label": "tạm ngưng",
+    "id": "tam-ngung"
+  },
+  {
+    "label": "thể thao",
+    "id": "the-thao"
+  },
+  {
+    "label": "thriller",
+    "id": "thriller"
+  },
+  {
+    "label": "time travel",
+    "id": "time-travel"
+  },
+  {
+    "label": "tình dục",
+    "id": "tinh-duc"
+  },
+  {
+    "label": "tình yêu",
+    "id": "tinh-yeu"
+  },
+  {
+    "label": "tình yêu thuần khiết",
+    "id": "tinh-yeu-thuan-khiet"
+  },
+  {
+    "label": "toán học",
+    "id": "toan-hoc"
+  },
+  {
+    "label": "tội phạm",
+    "id": "toi-pham"
+  },
+  {
+    "label": "tragedy",
+    "id": "tragedy"
+  },
+  {
+    "label": "trap",
+    "id": "trap"
+  },
+  {
+    "label": "trinh thám",
+    "id": "trinh-tham"
+  },
+  {
+    "label": "trung cổ",
+    "id": "trung-co"
+  },
+  {
+    "label": "truyện việt",
+    "id": "truyen-viet"
+  },
+  {
+    "label": "tuyển tập",
+    "id": "tuyen-tap"
+  },
+  {
+    "label": "uma musume",
+    "id": "uma-musume"
+  },
+  {
+    "label": "vampires",
+    "id": "vampires"
+  },
+  {
+    "label": "video games",
+    "id": "video-games"
+  },
+  {
+    "label": "việt nam",
+    "id": "viet-nam"
+  },
+  {
+    "label": "virtual reality",
+    "id": "virtual-reality"
+  },
+  {
+    "label": "võ thuật",
+    "id": "vo-thuat"
+  },
+  {
+    "label": "web comic",
+    "id": "web-comic"
+  },
+  {
+    "label": "web novel",
+    "id": "web-novel"
+  },
+  {
+    "label": "webtoon",
+    "id": "webtoon"
+  },
+  {
+    "label": "wholesome",
+    "id": "wholesome"
+  },
+  {
+    "label": "xuyên",
+    "id": "xuyen"
+  },
+  {
+    "label": "xuyên không",
+    "id": "xuyen-khong"
+  },
+  {
+    "label": "y học",
+    "id": "y-hoc"
+  },
+  {
+    "label": "yakuza",
+    "id": "yakuza"
+  },
+  {
+    "label": "yandere",
+    "id": "yandere"
+  },
+  {
+    "label": "yaoi",
+    "id": "yaoi"
+  },
+  {
+    "label": "yonkoma",
+    "id": "yonkoma"
+  },
+  {
+    "label": "yuri",
+    "id": "yuri"
+  },
+  {
+    "label": "zombie",
+    "id": "zombie"
+  }
+]

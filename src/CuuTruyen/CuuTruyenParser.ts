@@ -1,4 +1,5 @@
 import { Chapter, SourceManga, Tag, TagSection, PartialSourceManga } from '@paperback/types';
+import genreTagsJson from './includes/genreTags.json';
 import { CheerioAPI } from 'cheerio';
 
 export class Parser {
@@ -253,18 +254,9 @@ export class Parser {
         return pages;
     }
 
-    parseTags($: CheerioAPI): TagSection[] {
+    parseTags(): TagSection[] {
         // 1. Thể loại truyện
-        const genreTags: Tag[] = [];
-        $('a[href*="/the-loai/"]').each((_: any, obj: any) => {
-            const label = $(obj).text().trim();
-
-            const id = $(obj).attr('href')?.split('/the-loai/')[1] ?? label;
-
-            if (label) {
-                genreTags.push(App.createTag({ label, id }));
-            }
-        });
+        const genreTags = genreTagsJson.map(({ label, id }) => App.createTag({ label, id }));
 
         // 2. Sắp xếp (Sort)
         const sortTags: Tag[] = [
