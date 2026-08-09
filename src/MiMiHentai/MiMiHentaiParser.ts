@@ -72,10 +72,6 @@ export class Parser {
         }
 
         for (const item of json.items) {
-            // Check isReup
-            const isReup = item.is_reup;
-            if (isReup) continue;
-
             const mangaId = item.id ? String(item.id) : '';
             const title = item.title?.trim() || '';
             const image = item.cover_url || '';
@@ -83,7 +79,7 @@ export class Parser {
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
             const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
 
-            if (mangaId && title && !isReup) {
+            if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
@@ -106,10 +102,6 @@ export class Parser {
         }
 
         for (const item of json.items) {
-            // Check isReup
-            const isReup = item.is_reup;
-            if (!isReup) continue;
-
             const mangaId = item.id ? String(item.id) : '';
             const title = item.title?.trim() || '';
             const image = item.cover_url || '';
@@ -117,7 +109,7 @@ export class Parser {
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
             const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
 
-            if (mangaId && title && isReup) {
+            if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
