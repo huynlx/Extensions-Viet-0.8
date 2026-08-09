@@ -196,7 +196,7 @@ export class Parser {
         // Lấy rating và lượt xem để đưa vào phần mô tả nếu không có đoạn text mô tả riêng
         const views = $('.list-info .row:has(.fa-eye) .col-xs-8').text().trim();
         const rating = $('.mrt5.mrb10 span:has(span)').text().replace(/\s+/g, ' ').trim();
-        const description = `Lượt xem: ${views}\nXếp hạng: ${rating}`;
+        const description = `Lượt xem: ${views}\n${rating}`;
 
         return App.createSourceManga({
             id: mangaId,

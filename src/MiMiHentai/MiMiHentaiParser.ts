@@ -34,7 +34,7 @@ export class Parser {
         return mangaList;
     }
 
-    parseNewUpdatedSection(json: any): PartialSourceManga[] {
+    parseStaffPickSection(json: any): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
         if (!json || !Array.isArray(json.items)) {
@@ -64,44 +64,95 @@ export class Parser {
         return mangaList;
     }
 
-    parseHotSection($: CheerioAPI): PartialSourceManga[] {
+    parseNewUpdatedSection(json: any): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        $('.item-list li.item').each((_, element) => {
-            const $item = $(element);
+        if (!json || !Array.isArray(json.items)) {
+            return mangaList;
+        }
 
-            // 1. Title & Link chính từ thẻ <a> trong .box-description p
-            const $titleLink = $item.find('.box-description p a').first();
-            const title = $titleLink.text().trim();
+        for (const item of json.items) {
+            // Check isReup
+            const isReup = item.is_reup;
+            if (isReup) continue;
 
-            // 2. Manga ID từ href (lấy slug sau /truyen/)
-            const href = $titleLink.attr('href') || $item.find('.box-cover a').attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            const mangaId = item.id ? String(item.id) : '';
+            const title = item.title?.trim() || '';
+            const image = item.cover_url || '';
 
-            // 3. Image URL từ thẻ img.img-list
-            const $img = $item.find('.box-cover img').first();
-            let image = $img.attr('src') || $img.attr('data-src') || '';
+            // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
+            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
 
-            if (image.startsWith('//')) {
-                image = `https:${image}`;
+            if (mangaId && title && !isReup) {
+                mangaList.push(
+                    App.createPartialSourceManga({
+                        mangaId: mangaId,
+                        title: title,
+                        image: image,
+                        subtitle: subtitle,
+                    })
+                );
             }
+        }
 
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
-            const fullTitleText = $item.find('.box-description p').first().text().trim();
-            const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
-            const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
+        return mangaList;
+    }
 
-            // 5. Lấy số lượt xem từ thẻ <p> chứa "Lượt xem:"
-            const viewsText = $item
-                .find('.box-description p')
-                .filter((_, el) => $(el).find('b.info').text().includes('Lượt xem'))
-                .text()
-                .replace(/Lượt xem:\s*/i, '')
-                .trim();
+    parseNewReupSection(json: any): PartialSourceManga[] {
+        const mangaList: PartialSourceManga[] = [];
 
-            const subtitle = viewsText ? `👁 ${viewsText}` : undefined;
+        if (!json || !Array.isArray(json.items)) {
+            return mangaList;
+        }
 
-            if (mangaId && title && !mangaId.includes('javascript')) {
+        for (const item of json.items) {
+            // Check isReup
+            const isReup = item.is_reup;
+            if (!isReup) continue;
+
+            const mangaId = item.id ? String(item.id) : '';
+            const title = item.title?.trim() || '';
+            const image = item.cover_url || '';
+
+            // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
+            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
+
+            if (mangaId && title && isReup) {
+                mangaList.push(
+                    App.createPartialSourceManga({
+                        mangaId: mangaId,
+                        title: title,
+                        image: image,
+                        subtitle: subtitle,
+                    })
+                );
+            }
+        }
+
+        return mangaList;
+    }
+
+    parseRandomSection(data: any): PartialSourceManga[] {
+        const mangaList: PartialSourceManga[] = [];
+
+        // Hỗ trợ cả trường hợp data là JSON string hoặc Array/Object đã parse
+        const items: any[] = typeof data === 'string' ? JSON.parse(data) : data;
+
+        if (!Array.isArray(items)) {
+            return mangaList;
+        }
+
+        for (const item of items) {
+            const mangaId = item.id ? String(item.id) : '';
+            const title = item.title || '';
+            const image = item.cover_url || '';
+
+            // Ưu tiên hiển thị Tác giả ở subtitle, nếu không có thì hiển thị Số chương
+            const author = Array.isArray(item.authors) && item.authors.length > 0 ? item.authors[0].name : undefined;
+            const chapterText = item.chapter_count ? `${item.chapter_count} chương` : undefined;
+            const subtitle = author || chapterText;
+
+            if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
@@ -111,99 +162,38 @@ export class Parser {
                     })
                 );
             }
-        });
-
-        return mangaList;
-    }
-
-    parseRandomSection($: CheerioAPI): PartialSourceManga[] {
-        const mangaList: PartialSourceManga[] = [];
-
-        $('ul.page-random li').each((_, element) => {
-            const $item = $(element);
-
-            // 1. Link & Manga ID từ href (lấy slug sau /truyen/)
-            const href = $item.find('a').first().attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
-
-            // 2. Title từ .film-name hoặc alt của thẻ <img>
-            const title = $item.find('.film-name').text().trim() || $item.find('img').attr('alt')?.trim() || '';
-
-            // 3. Image URL từ thẻ <img>
-            const $img = $item.find('img').first();
-            let image = $img.attr('src') || $img.attr('data-src') || '';
-
-            if (image.startsWith('//')) {
-                image = `https:${image}`;
-            }
-
-            // 4. Chapter từ .meta (VD: "Chap 2")
-            const lastChapter = $item.find('.meta').text().trim() || undefined;
-
-            if (mangaId && title && !mangaId.includes('javascript')) {
-                mangaList.push(
-                    App.createPartialSourceManga({
-                        mangaId: mangaId,
-                        title: decodeHTML(title),
-                        image: image,
-                        subtitle: lastChapter,
-                    })
-                );
-            }
-        });
+        }
 
         return mangaList;
     }
 
     // Parse danh sách truyện (Search, Homepage, ViewMore)
-    parseSearchResults($: CheerioAPI): PartialSourceManga[] {
+    parseSearchResults(json: any): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        $('.item-list li.item').each((_, element) => {
-            const $item = $(element);
+        if (!json || !Array.isArray(json.items)) {
+            return mangaList;
+        }
 
-            // 1. Title & Link chính từ thẻ <a> trong .box-description p
-            const $titleLink = $item.find('.box-description p a').first();
-            const title = $titleLink.text().trim();
+        for (const item of json.items) {
+            const mangaId = item.id ? String(item.id) : '';
+            const title = item.title?.trim() || '';
+            const image = item.cover_url || '';
 
-            // 2. Manga ID từ href (lấy slug sau /truyen/)
-            const href = $titleLink.attr('href') || $item.find('.box-cover a').attr('href') || '';
-            const mangaId = href.split('/truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
+            // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
+            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
 
-            // 3. Image URL từ thẻ img.img-list
-            const $img = $item.find('.box-cover img').first();
-            let image = $img.attr('src') || $img.attr('data-src') || '';
-
-            if (image.startsWith('//')) {
-                image = `https:${image}`;
-            }
-
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
-            const fullTitleText = $item.find('.box-description p').first().text().trim();
-            const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
-            const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
-
-            // 5. Lấy số lượt xem từ thẻ <p> chứa "Lượt xem:"
-            const viewsText = $item
-                .find('.box-description p')
-                .filter((_, el) => $(el).find('b.info').text().includes('Lượt xem'))
-                .text()
-                .replace(/Lượt xem:\s*/i, '')
-                .trim();
-
-            const subtitle = viewsText ? `👁 ${viewsText}` : undefined;
-
-            if (mangaId && title && !mangaId.includes('javascript')) {
+            if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
-                        subtitle: lastChapter,
+                        subtitle: subtitle,
                     })
                 );
             }
-        });
+        }
 
         return mangaList;
     }
@@ -256,8 +246,8 @@ export class Parser {
             return tags;
         };
 
-        // a. Thể loại (/genres/) -> Giữ ID số nguyên bản
-        const genreTags = extractTagsFromUrl('/genres/');
+        // a. Thể loại (/genres/) -> Gắn prefix 'genre-'
+        const genreTags = extractTagsFromUrl('/genres/', 'genre-');
         if (genreTags.length > 0) {
             tagSections.push(App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }));
         }
@@ -390,31 +380,66 @@ export class Parser {
     }
 
     // Parse danh sách thể loại (Tags)
-    parseTags($: CheerioAPI): TagSection[] {
+    parseTags($genres: CheerioAPI, $home?: CheerioAPI): TagSection[] {
         const genreTags: Tag[] = [];
-        const sortTags: Tag[] = [];
+        const albumTags: Tag[] = [];
 
-        // 1. Thể loại: Trích xuất ID từ URL /genres/{id}
-        $('a[href*="/genres/"]').each((_, element) => {
-            const $item = $(element);
-            const href = $item.attr('href') || '';
+        // 1. Parse Album nổi bật từ HTML của https://mimihentai.moe/
+        if ($home) {
+            $home('a[href*="/albums/"]').each((_, element) => {
+                const $item = $home(element);
+                const href = $item.attr('href') || '';
 
-            // Tách lấy ID số từ href (Ví dụ: /genres/416 -> "416")
-            const id = href.split('/genres/').pop()?.split('/')[0]?.split('?')[0];
+                const id = href.split('/albums/').pop()?.split('/')[0]?.split('?')[0];
 
-            // Lấy tên thể loại từ div chứa class truncate hoặc div con đầu tiên
-            const label = $item.find('.truncate').text().trim() || $item.find('.flex-1 > div').first().text().trim();
+                // Bỏ qua link cá nhân /albums/me hoặc ID không hợp lệ
+                if (!id || isNaN(Number(id))) {
+                    return;
+                }
 
-            if (id && label) {
-                genreTags.push(
-                    App.createTag({
-                        id: id,
-                        label: label,
-                    })
-                );
-            }
-        });
+                const label = $item.find('h3').first().text().trim();
 
-        return [App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags })];
+                if (label) {
+                    albumTags.push(
+                        App.createTag({
+                            id: `album-${id}`, // Gắn prefix 'album-' để getSearchResults phân loại
+                            label: decodeHTML(label),
+                        })
+                    );
+                }
+            });
+        }
+
+        // 2. Parse Thể loại từ HTML của https://mimihentai.moe/genres
+        if ($genres) {
+            $genres('a[href*="/genres/"]').each((_, element) => {
+                const $item = $genres(element);
+                const href = $item.attr('href') || '';
+
+                const id = href.split('/genres/').pop()?.split('/')[0]?.split('?')[0];
+                const label = $item.find('.truncate').text().trim() || $item.find('.flex-1 > div').first().text().trim();
+
+                if (id && label) {
+                    genreTags.push(
+                        App.createTag({
+                            id: `genre-${id}`, // Gắn prefix 'genre-' để getSearchResults phân loại id,
+                            label: decodeHTML(label),
+                        })
+                    );
+                }
+            });
+        }
+
+        const sections: TagSection[] = [];
+
+        if (albumTags.length > 0) {
+            sections.push(App.createTagSection({ id: 'albums', label: 'Album nổi bật', tags: albumTags }));
+        }
+
+        if (genreTags.length > 0) {
+            sections.push(App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }));
+        }
+
+        return sections;
     }
 }
