@@ -293,7 +293,7 @@ export class Parser {
         // 1. Quét tất cả thẻ <a> dẫn tới chapter
         const chapterElements = $('a[href*="/chapter/"]').toArray();
 
-        // Lọc bỏ các nút không phải trong danh sách (VD: nút "Bắt đầu đọc" ở header)
+        // Lọc bỏ các nút không thuộc danh sách chương (như nút "Bắt đầu đọc")
         const validElements = chapterElements.filter((el) => {
             const text = $(el).text();
             return !text.includes('Bắt đầu đọc');
@@ -305,31 +305,30 @@ export class Parser {
             const $a = $(element);
             const href = $a.attr('href') || '';
 
-            // Extract ID từ href (Ví dụ: "/manga/69415/chapter/133091" -> "69415/chapter/133091")
+            // Extract ID từ href (VD: "/manga/27652/chapter/133079" -> "27652/chapter/133079")
             const rawSlug = href.split('/manga/').pop() ?? '';
             const chapterId = rawSlug.split('?')[0] || href;
 
             if (!chapterId || seenChapterIds.has(chapterId)) return;
             seenChapterIds.add(chapterId);
 
-            // 2. Lấy tên chương (Lấy span chứa text tên chương)
-            const chapterName = $a.find('span.break-all, span.text-zinc-400, span.font-medium, span.font-bold').first().text().trim() || $a.text().trim();
-
-            // 3. Tính chapNum chuẩn (kể cả với Oneshot hoặc tên không có số)
-            const chapNumMatch = chapterName.match(/#?(\d+(?:\.\d+)?)/);
-            let chapNum = totalChapters - index; // Mặc định tính giảm dần theo thứ tự danh sách
-
-            if (chapNumMatch?.[1]) {
-                chapNum = parseFloat(chapNumMatch[1]);
-            } else if (chapterName.toLowerCase().includes('oneshot')) {
-                chapNum = 1;
+            // 2. Lấy tên chương chuẩn từ DOM HTML
+            let chapterName = $a.find('div.flex-col > span.font-bold').text().trim();
+            if (!chapterName) {
+                chapterName = $a.find('span.break-all, span.text-zinc-400').first().text().trim() || $a.text().trim();
             }
 
-            // 4. Lấy thời gian cập nhật ("Hôm nay", "2 ngày trước", "5/3/2026"...)
-            // Tìm span chứa icon clock hoặc chứa text thời gian
-            const timeStr =
-                $a.find('span:contains("Hôm nay"), span:contains("trước"), span:contains("ngày"), span:contains("giờ")').last().text().trim() ||
-                $a.find('span.text-xs span.flex').text().trim();
+            // 3. Gán chapNum theo vị trí xuất hiện (HTML đã sắp xếp từ MỚI nhất -> CŨ nhất)
+            const chapNum = totalChapters - index;
+
+            // 4. Lấy thời gian cập nhật & Loại bỏ các chữ rác như "Đã đọc", "đã đọc"
+            let timeStr = $a.find('span.text-xs span.flex').clone().children().remove().end().text().trim();
+
+            // Loại bỏ chữ "đã đọc" và chuẩn hóa khoảng trắng
+            timeStr = timeStr
+                .replace(/đã đọc/gi, '')
+                .replace(/\s+/g, ' ')
+                .trim();
 
             const time = parseDate(timeStr);
 
@@ -340,6 +339,7 @@ export class Parser {
                     chapNum: chapNum,
                     langCode: '🇻🇳',
                     time: time,
+                    group: timeStr,
                 })
             );
         });
