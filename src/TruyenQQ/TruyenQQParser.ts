@@ -125,7 +125,11 @@ export class Parser {
 
         $('a', '.list01').each((_: any, obj: any) => {
             const label = $(obj).text().trim();
-            const id = $(obj).attr('href')?.split('/')[4] ?? label;
+            const href = $(obj).attr('href'); // "/the-loai/action-26"
+
+            // Tìm cụm số đứng sau dấu gạch ngang (-) ở cuối chuỗi
+            const id = href?.match(/-(\d+)$/)?.[1] ?? label;
+
             tags.push(App.createTag({ label, id }));
         });
 
