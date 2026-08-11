@@ -20,18 +20,18 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { Parser } from './CuuTruyenParser';
-import { domainSettings, getDomain, resetSettings, getPassword, passwordSettings } from './CuuTruyenSetting';
+import { Parser } from './ViHentaiParser';
+import { domainSettings, getDomain, resetSettings, getPassword, passwordSettings } from './ViHentaiSetting';
 
-const DEFAULT_DOMAIN = 'https://cuutruyen.moe';
+const DEFAULT_DOMAIN = 'https://vi-hentai.pro';
 
-export const CuuTruyenInfo: SourceInfo = {
+export const ViHentaiInfo: SourceInfo = {
     version: '1.0.2',
-    name: 'CuuTruyen',
+    name: 'ViHentai',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
-    description: 'Extension that pulls manga from CuuTruyen.',
+    description: 'Extension that pulls manga from ViHentai.',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DEFAULT_DOMAIN,
     sourceTags: [
@@ -43,7 +43,7 @@ export const CuuTruyenInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
-export class CuuTruyen implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
+export class ViHentai implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     stateManager = App.createSourceStateManager();
     parser = new Parser();
 
@@ -350,7 +350,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
     async CloudFlareError(status: number): Promise<void> {
         if (status === 503 || status === 403) {
             const baseUrl = await this.getBaseUrl();
-            throw new Error(`CLOUDFLARE BYPASS ERROR:\nPlease go to home page ${CuuTruyen.name} source (${baseUrl}) and press the cloud icon.`);
+            throw new Error(`CLOUDFLARE BYPASS ERROR:\nPlease go to home page ${ViHentai.name} source (${baseUrl}) and press the cloud icon.`);
         }
     }
 
