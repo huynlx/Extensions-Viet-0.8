@@ -51,11 +51,22 @@ export const HentaiCubeInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class HentaiCube implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
     parser = new Parser();
+
+    private cache = new Map<string, CacheEntry<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -86,13 +97,24 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
     }
 
     private async DOMHTML(url: string): Promise<CheerioAPI> {
+        const cacheKey = `dom-${url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            return cached.data;
+        }
+
         const request = App.createRequest({
             url: url,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, 1);
         this.CloudFlareError(response.status);
-        return this.cheerio.load(response.data as string);
+
+        const $ = this.cheerio.load(response.data as string);
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     CloudFlareError(status: number) {
@@ -105,9 +127,20 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
     }
 
     async getSearchTags(): Promise<TagSection[]> {
+        const cacheKey = 'search-tags';
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
         const $ = await this.DOMHTML(`${baseUrl}/the-loai-genres/`);
-        return this.parser.parseTags($);
+        const tags = this.parser.parseTags($);
+
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
@@ -165,12 +198,31 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        const cacheKey = `manga-detail-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
         const $ = await this.DOMHTML(`${baseUrl}/read/${mangaId}`);
-        return this.parser.parseMangaDetails($, mangaId);
+        const mangaDetails = this.parser.parseMangaDetails($, mangaId);
+
+        this.cache.set(cacheKey, { data: mangaDetails, timestamp: now });
+        return mangaDetails;
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
+        const cacheKey = `chapters-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
         const allElements: any[] = [];
         let currentPage = 1;
@@ -212,53 +264,65 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         }
 
         // Bước 2: Truyền toàn bộ danh sách phần tử đã gom được vào parser để xử lý một thể
-        // (parser sẽ tự động đảo ngược toàn bộ từ Cũ nhất -> Mới nhất và đánh số chuẩn)
-        return this.parser.parseChapterListFromArray(allElements, this.cheerio);
+        const chapters = this.parser.parseChapterListFromArray(allElements, this.cheerio);
+        this.cache.set(cacheKey, { data: chapters, timestamp: now });
+        return chapters;
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const baseUrl = await this.getBaseUrl();
-        const chapterUrl = `${baseUrl}/read/${chapterId}/`;
+        const cacheKey = `chapter-details-${chapterId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        const request = App.createRequest({
-            url: chapterUrl,
-            method: 'GET',
-            headers: { Referer: baseUrl },
-        });
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const baseUrl = await this.getBaseUrl();
+            const chapterUrl = `${baseUrl}/read/${chapterId}/`;
 
-        const response = await this.requestManager.schedule(request, 1);
-        const $ = this.cheerio.load(response.data as string);
-
-        const $reader = $('.masr2-reader, #manga-secure-reader');
-        let currentToken = $reader.attr('data-masr2-token') || $reader.attr('data-token') || '';
-
-        if (!currentToken) {
-            throw new Error(`Không tìm thấy token cho chapter: ${chapterId}`);
-        }
-
-        const cid = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        const pages: string[] = [];
-
-        while (currentToken) {
-            const apiUrl = `${baseUrl}/wp-json/manga-reader/v2/pages?token=${encodeURIComponent(currentToken)}&cid=${encodeURIComponent(cid)}`;
-
-            const apiRequest = App.createRequest({
-                url: apiUrl,
+            const request = App.createRequest({
+                url: chapterUrl,
                 method: 'GET',
-                headers: { Accept: 'application/json', Referer: chapterUrl },
+                headers: { Referer: baseUrl },
             });
 
-            const apiResponse = await this.requestManager.schedule(apiRequest, 1);
-            const data = typeof apiResponse.data === 'string' ? JSON.parse(apiResponse.data) : apiResponse.data;
+            const response = await this.requestManager.schedule(request, 1);
+            const $ = this.cheerio.load(response.data as string);
 
-            if (Array.isArray(data?.items)) {
-                pages.push(...data.items);
+            const $reader = $('.masr2-reader, #manga-secure-reader');
+            let currentToken = $reader.attr('data-masr2-token') || $reader.attr('data-token') || '';
+
+            if (!currentToken) {
+                throw new Error(`Không tìm thấy token cho chapter: ${chapterId}`);
             }
 
-            if (data?.done || !data?.next_token) {
-                break;
+            const cid = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+            pages = [];
+
+            while (currentToken) {
+                const apiUrl = `${baseUrl}/wp-json/manga-reader/v2/pages?token=${encodeURIComponent(currentToken)}&cid=${encodeURIComponent(cid)}`;
+
+                const apiRequest = App.createRequest({
+                    url: apiUrl,
+                    method: 'GET',
+                    headers: { Accept: 'application/json', Referer: chapterUrl },
+                });
+
+                const apiResponse = await this.requestManager.schedule(apiRequest, 1);
+                const data = typeof apiResponse.data === 'string' ? JSON.parse(apiResponse.data) : apiResponse.data;
+
+                if (Array.isArray(data?.items)) {
+                    pages.push(...data.items);
+                }
+
+                if (data?.done || !data?.next_token) {
+                    break;
+                }
+                currentToken = data.next_token;
             }
-            currentToken = data.next_token;
+
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
         }
 
         return App.createChapterDetails({
@@ -308,7 +372,18 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
         const queryString = params.length > 0 ? `?${params.join('&')}` : '';
         const url = hasKeyword ? `${baseUrl}${pagePart}${queryString}` : `${baseUrl}${basePath}${pagePart}${queryString}`;
 
-        const $ = await this.DOMHTML(url);
+        const cacheKey = `search-${url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(url);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
         const manga = hasKeyword ? this.parser.parseLoopResults($) : this.parser.parseSearchResults($);
 
         return App.createPagedResults({
@@ -349,7 +424,18 @@ export class HentaiCube implements SearchResultsProviding, MangaProviding, Chapt
             throw new Error(`Invalid homepage section ID: ${homepageSectionId}`);
         }
 
-        const $ = await this.DOMHTML(config.url);
+        const cacheKey = `view-more-${config.url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(config.url);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
         const manga = config.parse($);
 
         return App.createPagedResults({

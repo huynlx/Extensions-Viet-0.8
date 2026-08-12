@@ -48,11 +48,22 @@ export const MisskonInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class Misskon implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
     parser = new Parser();
+
+    private cache = new Map<string, CacheEntry<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -81,14 +92,25 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
         return `${DOMAIN}/truyen/${mangaId}`;
     }
 
-    private async DOMHTML(url: string): Promise<CheerioAPI> {
+    private async DOMHTML(url: string, param?: any): Promise<CheerioAPI> {
+        const cacheKey = `dom-${url}-${JSON.stringify(param ?? '')}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            return cached.data;
+        }
+
         const request = App.createRequest({
             url: url,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, 1);
         this.CloudFlareError(response.status);
-        return this.cheerio.load(response.data as string);
+
+        const $ = this.cheerio.load(response.data as string);
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     CloudFlareError(status: number) {
@@ -110,9 +132,20 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
     }
 
     async getSearchTags(): Promise<TagSection[]> {
+        const cacheKey = 'search-tags';
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
         const $ = await this.DOMHTML(`${baseUrl}/sets/`);
-        return this.parser.parseTags($);
+        const tags = this.parser.parseTags($);
+
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
@@ -221,54 +254,63 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
         await Promise.allSettled([fetchHome, fetchTop3Days, fetchTop7Days, fetchTop30Days, fetchTop60Days, fetchTopYear]);
     }
 
-    // 1. Thêm Map cache vào class
-    private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
-
-    // 2. Helper fetch HTML dùng chung có caching
-    private async fetchMangaPage(realMangaId: string): Promise<CheerioAPI> {
+    private async fetchMangaPageCached(realMangaId: string): Promise<CheerioAPI> {
+        const cacheKey = `manga-page-${realMangaId}`;
         const now = Date.now();
-        const cached = this.pageCache.get(realMangaId);
+        const cached = this.cache.get(cacheKey);
 
-        // Giữ cache trong 10 giây để phục vụ các hàm gọi song song
-        if (cached && now - cached.timestamp < 10000) {
-            return cached.promise;
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
         }
 
         const baseUrl = await this.getBaseUrl();
-        const promise = this.DOMHTML(`${baseUrl}/${realMangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/${realMangaId}`);
 
-        this.pageCache.set(realMangaId, { promise, timestamp: now });
-        return promise;
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        // Sửa TS2345: Thêm '?? ""' để đảm bảo kiều dữ liệu luôn là string
         const realMangaId = mangaId.split('|')[0] ?? '';
-
-        const $ = await this.fetchMangaPage(realMangaId);
-
-        // Đưa cả composite mangaId ban đầu vào parser để giữ nguyên ID cho App
+        const $ = await this.fetchMangaPageCached(realMangaId);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        // Sửa TS2345: Thêm '?? ""' để đảm bảo kiểu dữ liệu luôn là string
         const realMangaId = mangaId.split('|')[0] ?? '';
+        const cacheKey = `chapters-${realMangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        const $ = await this.fetchMangaPage(realMangaId);
-        return this.parser.parseChapterList($);
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
+        const $ = await this.fetchMangaPageCached(realMangaId);
+        const chapters = this.parser.parseChapterList($);
+
+        this.cache.set(cacheKey, { data: chapters, timestamp: now });
+        return chapters;
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const baseUrl = await this.getBaseUrl();
+        const cacheKey = `chapter-details-${chapterId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        // chapterId đã bao gồm cả path và query param (VD: "slug-55851?page=2")
-        const $ = await this.DOMHTML(`${baseUrl}/${chapterId}`);
-        const pages = this.parser.parseChapterDetails($);
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const baseUrl = await this.getBaseUrl();
+            const $ = await this.DOMHTML(`${baseUrl}/${chapterId}`);
+            pages = this.parser.parseChapterDetails($);
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
+        }
 
         return App.createChapterDetails({
             id: chapterId,
-            mangaId: mangaId, // Giữ nguyên composite mangaId
+            mangaId: mangaId,
             pages: pages,
         });
     }
@@ -281,7 +323,6 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
         const keyword = query.title?.trim() ?? '';
         let firstTagId = '';
 
-        // Lấy Tag ID đầu tiên hợp lệ từ includedTags (nếu có)
         if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 if (tag.id && tag.id !== 'all') {
@@ -293,50 +334,47 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
 
         let targetUrl = '';
 
-        // Trường hợp 1: Có cả Tag lẫn Keyword -> /tag/{tagId}/page/{page}/?s={keyword}
         if (firstTagId && keyword) {
             const basePath = `${cleanBaseUrl}/tag/${firstTagId}`;
             const pagePath = page > 1 ? `/page/${page}` : '';
             targetUrl = `${basePath}${pagePath}/?s=${encodeURIComponent(keyword)}`;
-        }
-        // Trường hợp 2: Chỉ search theo Tag -> /tag/{tagId}/page/{page}/
-        else if (firstTagId) {
+        } else if (firstTagId) {
             const basePath = `${cleanBaseUrl}/tag/${firstTagId}`;
             const pagePath = page > 1 ? `/page/${page}/` : '/';
             targetUrl = `${basePath}${pagePath}`;
-        }
-        // Trường hợp 3: Chỉ search theo Keyword -> /page/{page}/?s={keyword}
-        else if (keyword) {
+        } else if (keyword) {
             const pagePath = page > 1 ? `/page/${page}` : '';
             targetUrl = `${cleanBaseUrl}${pagePath}/?s=${encodeURIComponent(keyword)}`;
-        }
-        // Trường hợp 4: Không chọn Tag lẫn Keyword -> Lấy danh sách trang chủ theo trang
-        else {
+        } else {
             targetUrl = page > 1 ? `${cleanBaseUrl}/page/${page}/` : `${cleanBaseUrl}/`;
         }
 
-        const $ = await this.DOMHTML(targetUrl);
+        const cacheKey = `search-${targetUrl}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(targetUrl);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
         const manga = this.parser.parseSearchResults($);
 
-        // Xử lý hasNextPage dựa trên HTML phân trang thực tế:
-        // 1. Kiểm tra xem có thẻ <a> nằm sau <span class="current"> hay không
-        // 2. Hoặc kiểm tra xem nút #tie-next-page có chứa link <a> không
-        // 3. Hoặc kiểm tra xem bất kỳ thẻ a.page nào có title > trang hiện tại
         let hasNextPage = false;
-
         const $pagination = $('.pagination');
         if ($pagination.length > 0) {
             const $current = $pagination.find('span.current');
             if ($current.length > 0) {
-                // Nếu có thẻ <a> nằm phía sau thẻ span.current -> Vẫn còn trang tiếp theo
                 hasNextPage = $current.nextAll('a').length > 0;
             } else {
-                // Fallback: Tìm thẻ a.page có số trang lớn hơn trang hiện tại
                 $pagination.find('a.page').each((_, el) => {
                     const pageNum = parseInt($(el).attr('title') || $(el).text().trim(), 10);
                     if (!isNaN(pageNum) && pageNum > page) {
                         hasNextPage = true;
-                        return false; // Break loop
+                        return false;
                     }
                 });
             }
@@ -352,11 +390,8 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
         const page: number = metadata?.page ?? 1;
         const baseUrl = await this.getBaseUrl();
 
-        // Mapping section với logic tạo URL phân trang MissKON WordPress (/page/N/)
         const sectionConfig: Record<string, { getUrl: (p: number) => string; parse: ($: CheerioAPI) => PartialSourceManga[] }> = {
             new_updated: {
-                // Page 1 -> https://misskon.com
-                // Page 2 -> https://misskon.com/page/2/
                 getUrl: (p) => (p === 1 ? baseUrl : `${baseUrl.replace(/\/$/, '')}/page/${p}/`),
                 parse: ($) => this.parser.parseNewUpdatedSection($),
             },
@@ -369,10 +404,20 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
         }
 
         const requestUrl = config.getUrl(page);
-        const $ = await this.DOMHTML(requestUrl);
+        const cacheKey = `view-more-${requestUrl}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(requestUrl);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
         const manga = config.parse($);
 
-        // Dừng phân trang nếu không lấy được item nào
         if (!manga || manga.length === 0) {
             return App.createPagedResults({
                 results: [],
@@ -380,11 +425,6 @@ export class Misskon implements SearchResultsProviding, MangaProviding, ChapterP
             });
         }
 
-        // Kiểm tra trang tiếp theo trong MissKON Pagination HTML
-        // Có trang tiếp theo nếu:
-        // 1. Có thẻ <a> chứa title matching số trang kế tiếp (page + 1)
-        // 2. Hoặc có thẻ #tie-next-page chứa <a>
-        // 3. Hoặc có class .extend (...)
         const nextPageNum = page + 1;
         const hasNextLink = $('.pagination a.page').filter((_, el) => $(el).attr('title') === String(nextPageNum)).length > 0;
         const hasNextPageBtn = $('#tie-next-page a').length > 0;

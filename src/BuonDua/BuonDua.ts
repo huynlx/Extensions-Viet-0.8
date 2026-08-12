@@ -48,11 +48,22 @@ export const BuonDuaInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
     parser = new Parser();
+
+    private cache = new Map<string, CacheEntry<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -82,13 +93,24 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
     }
 
     private async DOMHTML(url: string): Promise<CheerioAPI> {
+        const cacheKey = `dom-${url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            return cached.data;
+        }
+
         const request = App.createRequest({
             url: url,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, 1);
         this.CloudFlareError(response.status);
-        return this.cheerio.load(response.data as string);
+
+        const $ = this.cheerio.load(response.data as string);
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     CloudFlareError(status: number) {
@@ -161,59 +183,79 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
     }
 
     async getSearchTags(): Promise<TagSection[]> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/collection`);
-        return this.parser.parseTags($);
-    }
-
-    // 1. Thêm Map cache vào class
-    private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
-
-    // 2. Helper fetch HTML dùng chung có caching
-    private async fetchMangaPage(realMangaId: string): Promise<CheerioAPI> {
+        const cacheKey = 'search-tags';
         const now = Date.now();
-        const cached = this.pageCache.get(realMangaId);
+        const cached = this.cache.get(cacheKey);
 
-        // Giữ cache trong 10 giây để phục vụ các hàm gọi song song
-        if (cached && now - cached.timestamp < 10000) {
-            return cached.promise;
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
         }
 
         const baseUrl = await this.getBaseUrl();
-        const promise = this.DOMHTML(`${baseUrl}/${realMangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/collection`);
+        const tags = this.parser.parseTags($);
 
-        this.pageCache.set(realMangaId, { promise, timestamp: now });
-        return promise;
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
+    }
+
+    private async fetchMangaPage(realMangaId: string): Promise<CheerioAPI> {
+        const cacheKey = `manga-detail-${realMangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/${realMangaId}`);
+
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        // Sửa TS2345: Thêm '?? ""' để đảm bảo kiều dữ liệu luôn là string
         const realMangaId = mangaId.split('|')[0] ?? '';
-
         const $ = await this.fetchMangaPage(realMangaId);
-
-        // Đưa cả composite mangaId ban đầu vào parser để giữ nguyên ID cho App
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        // Sửa TS2345: Thêm '?? ""' để đảm bảo kiểu dữ liệu luôn là string
         const realMangaId = mangaId.split('|')[0] ?? '';
+        const cacheKey = `chapters-${realMangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
 
         const $ = await this.fetchMangaPage(realMangaId);
-        return this.parser.parseChapterList($);
+        const chapters = this.parser.parseChapterList($);
+
+        this.cache.set(cacheKey, { data: chapters, timestamp: now });
+        return chapters;
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const baseUrl = await this.getBaseUrl();
+        const cacheKey = `chapter-details-${chapterId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        // chapterId đã bao gồm cả path và query param (VD: "slug-55851?page=2")
-        const $ = await this.DOMHTML(`${baseUrl}/${chapterId}`);
-        const pages = this.parser.parseChapterDetails($);
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const baseUrl = await this.getBaseUrl();
+            const $ = await this.DOMHTML(`${baseUrl}/${chapterId}`);
+            pages = this.parser.parseChapterDetails($);
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
+        }
 
         return App.createChapterDetails({
             id: chapterId,
-            mangaId: mangaId, // Giữ nguyên composite mangaId
+            mangaId: mangaId,
             pages: pages,
         });
     }
@@ -225,16 +267,12 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         let basePath = '';
         const params: string[] = [];
 
-        // Tính offset phân trang (Buondua dùng 20 items mỗi trang)
         const startOffset = (page - 1) * 20;
 
-        // 1. Ưu tiên xử lý từ khóa tìm kiếm (Ví dụ: /?search=yu)
         if (query.title?.trim()) {
             basePath = '/';
             params.push(`search=${encodeURIComponent(query.title.trim())}`);
-        }
-        // 2. Xử lý Thể loại nếu không tìm theo từ khóa (Ví dụ: /tag/cosplay-10688)
-        else if (query.includedTags && query.includedTags.length > 0) {
+        } else if (query.includedTags && query.includedTags.length > 0) {
             for (const tag of query.includedTags) {
                 const tagId = tag.id;
 
@@ -243,21 +281,17 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
                 }
 
                 if (tagId.includes('=')) {
-                    // Tham số query mở rộng nếu có
                     params.push(tagId);
                 } else {
-                    // Đường dẫn tag dạng /tag/cosplay-10688
                     basePath = `/tag/${tagId}`;
                 }
             }
         }
 
-        // 3. Nếu KHÔNG có từ khóa lẫn thể loại (Trang danh sách chung)
         if (!basePath) {
             basePath = '/';
         }
 
-        // 4. Phân trang (Trang 2 trở đi thêm &start=20, start=40...)
         if (page > 1) {
             params.push(`start=${startOffset}`);
         }
@@ -265,9 +299,19 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         const queryString = params.length > 0 ? `?${params.join('&')}` : '';
         const url = `${baseUrl}${basePath}${queryString}`.replace(/\/\?/g, '/?');
 
-        const $ = await this.DOMHTML(url);
-        const manga = this.parser.parseSearchResults($);
+        const cacheKey = `search-${url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(url);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
+        const manga = this.parser.parseSearchResults($);
         const lastPage = isLastPage($);
 
         return App.createPagedResults({
@@ -280,12 +324,8 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         const page: number = metadata?.page ?? 1;
         const baseUrl = await this.getBaseUrl();
 
-        // Mapping section với logic tạo URL offset (?start=N)
         const sectionConfig: Record<string, { getUrl: (p: number) => string; parse: ($: CheerioAPI) => PartialSourceManga[] }> = {
             new_updated: {
-                // Page 1 -> https://buondua.com/ (hoặc ?start=0)
-                // Page 2 -> https://buondua.com/?start=20
-                // Page 3 -> https://buondua.com/?start=40
                 getUrl: (p) => (p === 1 ? baseUrl : `${baseUrl}/?start=${(p - 1) * 20}`),
                 parse: ($) => this.parser.parseNewUpdatedSection($),
             },
@@ -302,10 +342,20 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         }
 
         const requestUrl = config.getUrl(page);
-        const $ = await this.DOMHTML(requestUrl);
+        const cacheKey = `view-more-${requestUrl}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(requestUrl);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
         const manga = config.parse($);
 
-        // Dừng phân trang nếu không lấy được item nào
         if (!manga || manga.length === 0) {
             return App.createPagedResults({
                 results: [],

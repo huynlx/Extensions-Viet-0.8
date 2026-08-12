@@ -52,11 +52,22 @@ export const MiMiHentaiInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class MiMiHentai implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
     parser = new Parser();
+
+    private cache = new Map<string, CacheEntry<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -85,14 +96,25 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
         return `${DOMAIN}/truyen/${mangaId}`;
     }
 
-    private async DOMHTML(url: string): Promise<CheerioAPI> {
+    private async DOMHTML(url: string, param?: any): Promise<CheerioAPI> {
+        const cacheKey = `dom-${url}-${JSON.stringify(param ?? '')}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            return cached.data;
+        }
+
         const request = App.createRequest({
             url: url,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, 1);
         this.CloudFlareError(response.status);
-        return this.cheerio.load(response.data as string);
+
+        const $ = this.cheerio.load(response.data as string);
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     CloudFlareError(status: number) {
@@ -114,12 +136,22 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
     }
 
     async getSearchTags(): Promise<TagSection[]> {
+        const cacheKey = 'search-tags';
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
 
         // Tải song song HTML từ trang thể loại và trang chủ
         const [$genres, $home] = await Promise.all([this.DOMHTML(`${baseUrl}/genres`), this.DOMHTML(`${baseUrl}`)]);
 
-        return this.parser.parseTags($genres, $home);
+        const tags = this.parser.parseTags($genres, $home);
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
@@ -180,16 +212,27 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
 
         // Nguồn 1: Truyện đề cử (Top)
         const fetchHome = (async () => {
-            const request = App.createRequest({
-                url: `${baseUrl}/api/manga/top`,
-                method: 'GET',
-                headers: {
-                    Referer: `${baseUrl}/`,
-                },
-            });
+            const url = `${baseUrl}/api/manga/top`;
+            const cacheKey = `api-${url}`;
+            const now = Date.now();
+            const cached = this.cache.get(cacheKey);
 
-            const response = await this.requestManager.schedule(request, 1);
-            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+            let json: any;
+            if (cached && now - cached.timestamp < this.CACHE_TTL) {
+                json = cached.data;
+            } else {
+                const request = App.createRequest({
+                    url: url,
+                    method: 'GET',
+                    headers: {
+                        Referer: `${baseUrl}/`,
+                    },
+                });
+
+                const response = await this.requestManager.schedule(request, 1);
+                json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                this.cache.set(cacheKey, { data: json, timestamp: now });
+            }
 
             featuredSection.items = this.parser.parseFeaturedSection(json);
             sectionCallback(featuredSection);
@@ -197,17 +240,27 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
 
         // Nguồn 2: Lựa Chọn Từ Staff
         const fetchStaffPick = (async () => {
-            const apiUrl = `${baseUrl}/api/manga/staff-picks?limit=10`;
-            const request = App.createRequest({
-                url: apiUrl,
-                method: 'GET',
-                headers: {
-                    Referer: `${baseUrl}/`,
-                },
-            });
+            const url = `${baseUrl}/api/manga/staff-picks?limit=10`;
+            const cacheKey = `api-${url}`;
+            const now = Date.now();
+            const cached = this.cache.get(cacheKey);
 
-            const response = await this.requestManager.schedule(request, 1);
-            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+            let json: any;
+            if (cached && now - cached.timestamp < this.CACHE_TTL) {
+                json = cached.data;
+            } else {
+                const request = App.createRequest({
+                    url: url,
+                    method: 'GET',
+                    headers: {
+                        Referer: `${baseUrl}/`,
+                    },
+                });
+
+                const response = await this.requestManager.schedule(request, 1);
+                json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                this.cache.set(cacheKey, { data: json, timestamp: now });
+            }
 
             staffPickSection.items = this.parser.parseStaffPickSection(json);
             sectionCallback(staffPickSection);
@@ -215,17 +268,27 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
 
         // Nguồn 3: Truyện mới nhất (Tự động loại trừ genre=196)
         const fetchNewUpdated = (async () => {
-            const apiUrl = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45&allow_reup=false`;
-            const request = App.createRequest({
-                url: apiUrl,
-                method: 'GET',
-                headers: {
-                    Referer: `${baseUrl}/lib`,
-                },
-            });
+            const url = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45&allow_reup=false`;
+            const cacheKey = `api-${url}`;
+            const now = Date.now();
+            const cached = this.cache.get(cacheKey);
 
-            const response = await this.requestManager.schedule(request, 1);
-            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+            let json: any;
+            if (cached && now - cached.timestamp < this.CACHE_TTL) {
+                json = cached.data;
+            } else {
+                const request = App.createRequest({
+                    url: url,
+                    method: 'GET',
+                    headers: {
+                        Referer: `${baseUrl}/lib`,
+                    },
+                });
+
+                const response = await this.requestManager.schedule(request, 1);
+                json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                this.cache.set(cacheKey, { data: json, timestamp: now });
+            }
 
             newUpdatedSection.items = this.parser.parseNewUpdatedSection(json);
             sectionCallback(newUpdatedSection);
@@ -233,27 +296,38 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
 
         // Nguồn 4: Xem Nhiều
         const fetchViews = (async () => {
-            const request = App.createRequest({
-                url: `${baseUrl}/api/manga?sort=views&exclude_genre=196&page=1&page_size=45`,
-                method: 'GET',
-                headers: {
-                    Referer: `${baseUrl}/lib`,
-                },
-            });
+            const url = `${baseUrl}/api/manga?sort=views&exclude_genre=196&page=1&page_size=45`;
+            const cacheKey = `api-${url}`;
+            const now = Date.now();
+            const cached = this.cache.get(cacheKey);
 
-            const response = await this.requestManager.schedule(request, 1);
-            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+            let json: any;
+            if (cached && now - cached.timestamp < this.CACHE_TTL) {
+                json = cached.data;
+            } else {
+                const request = App.createRequest({
+                    url: url,
+                    method: 'GET',
+                    headers: {
+                        Referer: `${baseUrl}/lib`,
+                    },
+                });
+
+                const response = await this.requestManager.schedule(request, 1);
+                json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                this.cache.set(cacheKey, { data: json, timestamp: now });
+            }
 
             viewsSection.items = this.parser.parseSearchResults(json);
-
             sectionCallback(viewsSection);
         })();
 
         // Nguồn 5: Hôm Nay Đọc Gì? (Random 10 truyện)
         const fetchRandom = (async () => {
             const timestamp = Date.now();
+            const url = `${baseUrl}/api/manga/random?limit=10&_t=${timestamp}`;
             const request = App.createRequest({
-                url: `${baseUrl}/api/manga/random?limit=10&_t=${timestamp}`,
+                url: url,
                 method: 'GET',
                 headers: {
                     Referer: `${baseUrl}/`,
@@ -264,23 +338,32 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
 
             randomSection.items = this.parser.parseRandomSection(json);
-
             sectionCallback(randomSection);
         })();
 
         // Nguồn 6: Truyện Reup Mới
         const fetchNewReup = (async () => {
-            const apiUrl = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45&reup_only=true`;
-            const request = App.createRequest({
-                url: apiUrl,
-                method: 'GET',
-                headers: {
-                    Referer: `${baseUrl}/lib`,
-                },
-            });
+            const url = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=1&page_size=45&reup_only=true`;
+            const cacheKey = `api-${url}`;
+            const now = Date.now();
+            const cached = this.cache.get(cacheKey);
 
-            const response = await this.requestManager.schedule(request, 1);
-            const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+            let json: any;
+            if (cached && now - cached.timestamp < this.CACHE_TTL) {
+                json = cached.data;
+            } else {
+                const request = App.createRequest({
+                    url: url,
+                    method: 'GET',
+                    headers: {
+                        Referer: `${baseUrl}/lib`,
+                    },
+                });
+
+                const response = await this.requestManager.schedule(request, 1);
+                json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                this.cache.set(cacheKey, { data: json, timestamp: now });
+            }
 
             newReupSection.items = this.parser.parseNewReupSection(json);
             sectionCallback(newReupSection);
@@ -290,39 +373,58 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
         await Promise.allSettled([fetchHome, fetchStaffPick, fetchNewUpdated, fetchViews, fetchRandom, fetchNewReup]);
     }
 
-    // Cache lưu Promise HTML theo mangaId
-    private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
-
-    private async fetchMangaPage(mangaId: string): Promise<CheerioAPI> {
+    private async fetchMangaPageCached(mangaId: string): Promise<CheerioAPI> {
+        const cacheKey = `manga-page-${mangaId}`;
         const now = Date.now();
-        const cached = this.pageCache.get(mangaId);
+        const cached = this.cache.get(cacheKey);
 
-        // Giữ cache trong 10 giây
-        if (cached && now - cached.timestamp < 10000) {
-            return cached.promise;
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
         }
 
         const baseUrl = await this.getBaseUrl();
-        const promise = this.DOMHTML(`${baseUrl}/manga/${mangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/manga/${mangaId}`);
 
-        this.pageCache.set(mangaId, { promise, timestamp: now });
-        return promise;
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const $ = await this.fetchMangaPage(mangaId);
+        const $ = await this.fetchMangaPageCached(mangaId);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const $ = await this.fetchMangaPage(mangaId);
-        return this.parser.parseChapterList($);
+        const cacheKey = `chapters-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
+        const $ = await this.fetchMangaPageCached(mangaId);
+        const chapters = this.parser.parseChapterList($);
+
+        this.cache.set(cacheKey, { data: chapters, timestamp: now });
+        return chapters;
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/manga/${chapterId}`);
-        const pages = this.parser.parseChapterDetails($);
+        const cacheKey = `chapter-details-${chapterId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const baseUrl = await this.getBaseUrl();
+            const $ = await this.DOMHTML(`${baseUrl}/manga/${chapterId}`);
+            pages = this.parser.parseChapterDetails($);
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
+        }
+
         return App.createChapterDetails({
             id: chapterId,
             mangaId: mangaId,
@@ -380,16 +482,13 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             endpoint = `/api/manga/by-character/${characterId}`;
             if (sortParam) params.push(`sort=${sortParam}`);
         } else if (query.title?.trim() && genreIds.length === 0) {
-            // Chỉ từ khóa -> /api/manga/search?q=...
             endpoint = '/api/manga/search';
             params.push(`q=${encodeURIComponent(query.title.trim())}`);
             if (sortParam) params.push(`sort=${sortParam}`);
         } else if (genreIds.length === 1 && !query.title?.trim()) {
-            // Chỉ 1 thể loại -> /api/manga/by-genre/{id}
             endpoint = `/api/manga/by-genre/${genreIds[0]}`;
             if (sortParam) params.push(`sort=${sortParam}`);
         } else if (genreIds.length > 0) {
-            // Tìm kiếm nâng cao
             endpoint = '/api/manga/advanced-search';
             if (query.title?.trim()) {
                 params.push(`title=${encodeURIComponent(query.title.trim())}`);
@@ -397,32 +496,38 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             params.push(`genre=${genreIds.join(',')}`);
             if (sortParam) params.push(`sort=${sortParam}`);
         } else {
-            // Danh mục chung
             endpoint = '/api/manga';
             if (sortParam) params.push(`sort=${sortParam}`);
         }
 
-        // Tham số chung
         params.push(`page=${page}`);
         params.push(`page_size=${pageSize}`);
         params.push('exclude_genre=196');
 
         const fullUrl = `${baseUrl}${endpoint}?${params.join('&')}`;
 
-        // 3. Thực hiện Request API
-        const request = App.createRequest({
-            url: fullUrl,
-            method: 'GET',
-            headers: {
-                accept: '*/*',
-                Referer: `${baseUrl}/search`,
-            },
-        });
+        const cacheKey = `api-${fullUrl}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        const response = await this.requestManager.schedule(request, 1);
-        const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+        let json: any;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            json = cached.data;
+        } else {
+            const request = App.createRequest({
+                url: fullUrl,
+                method: 'GET',
+                headers: {
+                    accept: '*/*',
+                    Referer: `${baseUrl}/search`,
+                },
+            });
 
-        // 4. Parse kết quả danh sách truyện
+            const response = await this.requestManager.schedule(request, 1);
+            json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+            this.cache.set(cacheKey, { data: json, timestamp: now });
+        }
+
         const manga = this.parser.parseSearchResults(json);
         const hasNextPage = true;
 
@@ -440,7 +545,6 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
         let apiUrl = '';
         let manga: PartialSourceManga[] = [];
 
-        // 1. Phân nhánh tạo API URL kèm exclude_genre / include_genre
         if (homepageSectionId === 'new_updated') {
             apiUrl = `${baseUrl}/api/manga?sort=updated_at&exclude_genre=196&page=${page}&page_size=${pageSize}&allow_reup=false`;
         } else if (homepageSectionId === 'new_reup') {
@@ -459,26 +563,33 @@ export class MiMiHentai implements SearchResultsProviding, MangaProviding, Chapt
             apiUrl = `${baseUrl}/api/manga?sort=${sortParam}&exclude_genre=196&page=${page}&page_size=${pageSize}`;
         }
 
-        // 2. Gửi request
-        const request = App.createRequest({
-            url: apiUrl,
-            method: 'GET',
-            headers: {
-                Referer: `${baseUrl}/lib`,
-            },
-        });
+        const cacheKey = `api-${apiUrl}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        const response = await this.requestManager.schedule(request, 1);
-        const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+        let json: any;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            json = cached.data;
+        } else {
+            const request = App.createRequest({
+                url: apiUrl,
+                method: 'GET',
+                headers: {
+                    Referer: `${baseUrl}/lib`,
+                },
+            });
 
-        // 3. Phân nhánh Parser tương ứng cho từng section
+            const response = await this.requestManager.schedule(request, 1);
+            json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+            this.cache.set(cacheKey, { data: json, timestamp: now });
+        }
+
         if (homepageSectionId === 'new_reup') {
             manga = this.parser.parseNewReupSection(json);
         } else {
             manga = this.parser.parseNewUpdatedSection(json);
         }
 
-        // 4. Kiểm tra trang tiếp theo
         const hasNextPage = true;
 
         return App.createPagedResults({

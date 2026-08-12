@@ -50,6 +50,12 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
     stateManager = App.createSourceStateManager();
     parser = new VinaHentaiParser();
 
+    private cache = new Map<string, CacheItem<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
+
     constructor(private cheerio: CheerioAPI) {}
 
     private async getBaseUrl(): Promise<string> {
@@ -75,12 +81,11 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         },
     });
 
-    private htmlCache = new Map<string, { data: CheerioAPI; timestamp: number }>();
-    private readonly CACHE_TTL = 60000; // 60 seconds cache TTL
-
     async DOMHTML(url: string, param?: any): Promise<CheerioAPI> {
+        const cacheKey = `dom-${url}-${JSON.stringify(param ?? '')}`;
         const now = Date.now();
-        const cached = this.htmlCache.get(url);
+        const cached = this.cache.get(cacheKey);
+
         if (cached && now - cached.timestamp < this.CACHE_TTL) {
             return cached.data;
         }
@@ -98,7 +103,7 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         const html = (res.data as string) ?? '';
         const $ = this.cheerio.load(html);
 
-        this.htmlCache.set(url, { data: $, timestamp: now });
+        this.cache.set(cacheKey, { data: $, timestamp: now });
         return $;
     }
 
@@ -110,8 +115,19 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
     // ============================ DETAILS & CHAPTERS ============================
 
     private async fetchMangaPage(mangaId: string): Promise<CheerioAPI> {
+        const cacheKey = `manga-page-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
-        return this.DOMHTML(`${baseUrl}/truyen-hentai/${mangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-hentai/${mangaId}`);
+
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
@@ -120,17 +136,28 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
+        const cacheKey = `chapters-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
         const $ = await this.fetchMangaPage(mangaId);
-        return this.parser.parseChapterList($);
+        const chapters = this.parser.parseChapterList($);
+
+        this.cache.set(cacheKey, { data: chapters, timestamp: now });
+        return chapters;
     }
 
-    private chapterDetailCache = new Map<string, CacheItem<string[]>>();
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
+        const cacheKey = `chapter-details-${chapterId}`;
         const now = Date.now();
-        const cached = this.chapterDetailCache.get(chapterId);
-        let pages: string[];
+        const cached = this.cache.get(cacheKey);
 
-        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
             pages = cached.data;
         } else {
             const baseUrl = await this.getBaseUrl();
@@ -145,7 +172,7 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
             const html = (response.data as string) ?? '';
 
             pages = this.parser.parseChapterDetails(html);
-            this.chapterDetailCache.set(chapterId, { data: pages, timestamp: now });
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
         }
 
         return App.createChapterDetails({
@@ -158,9 +185,20 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
     // ============================ SEARCH & TAGS ============================
 
     async getSearchTags(): Promise<TagSection[]> {
+        const cacheKey = 'search-tags';
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
         const $ = await this.DOMHTML(`${baseUrl}/danh-sach`);
-        return this.parser.parseGenres($);
+        const tags = this.parser.parseGenres($);
+
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
     }
 
     async supportsTagExclusion(): Promise<boolean> {
@@ -186,9 +224,19 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
             fullUrl = `${baseUrl}/danh-sach?page=${page}`;
         }
 
-        const $ = await this.DOMHTML(fullUrl);
-        const tiles = isSearch ? this.parser.parseSearchManga($) : this.parser.parseMangaList($);
+        const cacheKey = `search-${fullUrl}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(fullUrl);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
+        const tiles = isSearch ? this.parser.parseSearchManga($) : this.parser.parseMangaList($);
         const hasNextPage = this.parser.parseHasNextPage($, tiles.length, fullUrl, isSearch);
 
         return App.createPagedResults({
@@ -244,7 +292,17 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         const sort = homepageSectionId === 'popular' ? 'views' : 'updatedAt';
 
         const url = `${baseUrl}/danh-sach/?page=${page}&sort=${sort}`;
-        const $ = await this.DOMHTML(url);
+        const cacheKey = `view-more-${url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(url);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
 
         const mangas = this.parser.parseMangaList($);
         const hasNextPage = mangas.length >= 24;

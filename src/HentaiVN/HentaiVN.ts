@@ -51,11 +51,22 @@ export const HentaiVNInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class HentaiVN implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
     parser = new Parser();
+
+    private cache = new Map<string, CacheEntry<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -85,13 +96,24 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
     }
 
     private async DOMHTML(url: string): Promise<CheerioAPI> {
+        const cacheKey = `dom-${url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            return cached.data;
+        }
+
         const request = App.createRequest({
             url: url,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, 1);
         this.CloudFlareError(response.status);
-        return this.cheerio.load(response.data as string);
+
+        const $ = this.cheerio.load(response.data as string);
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     CloudFlareError(status: number) {
@@ -113,9 +135,20 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
     }
 
     async getSearchTags(): Promise<TagSection[]> {
+        const cacheKey = 'search-tags';
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
         const $ = await this.DOMHTML(`${baseUrl}/the-loai`);
-        return this.parser.parseTags($);
+        const tags = this.parser.parseTags($);
+
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
     }
 
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
@@ -197,23 +230,20 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         await Promise.allSettled([fetchHome, fetchNewUpdated, fetchHot, fetchOld]);
     }
 
-    // Cache lưu Promise HTML theo mangaId
-    private pageCache = new Map<string, { promise: Promise<CheerioAPI>; timestamp: number }>();
-
     private async fetchMangaPage(mangaId: string): Promise<CheerioAPI> {
+        const cacheKey = `manga-detail-${mangaId}`;
         const now = Date.now();
-        const cached = this.pageCache.get(mangaId);
+        const cached = this.cache.get(cacheKey);
 
-        // Giữ cache trong 10 giây
-        if (cached && now - cached.timestamp < 10000) {
-            return cached.promise;
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
         }
 
         const baseUrl = await this.getBaseUrl();
-        const promise = this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
+        const $ = await this.DOMHTML(`${baseUrl}/truyen/${mangaId}`);
 
-        this.pageCache.set(mangaId, { promise, timestamp: now });
-        return promise;
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
@@ -222,14 +252,36 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
+        const cacheKey = `chapters-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
         const $ = await this.fetchMangaPage(mangaId);
-        return this.parser.parseChapterList($);
+        const chapters = this.parser.parseChapterList($);
+
+        this.cache.set(cacheKey, { data: chapters, timestamp: now });
+        return chapters;
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen/${chapterId}`);
-        const pages = this.parser.parseChapterDetails($);
+        const cacheKey = `chapter-details-${chapterId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const baseUrl = await this.getBaseUrl();
+            const $ = await this.DOMHTML(`${baseUrl}/truyen/${chapterId}`);
+            pages = this.parser.parseChapterDetails($);
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
+        }
+
         return App.createChapterDetails({
             id: chapterId,
             mangaId: mangaId,

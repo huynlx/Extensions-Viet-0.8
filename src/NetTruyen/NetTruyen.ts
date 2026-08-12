@@ -43,11 +43,22 @@ export const NetTruyenInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class NetTruyen implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     constructor(private cheerio: CheerioAPI) {}
 
     stateManager = App.createSourceStateManager();
     parser = new Parser();
+
+    private cache = new Map<string, CacheEntry<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -76,14 +87,25 @@ export class NetTruyen implements SearchResultsProviding, MangaProviding, Chapte
         return `${DOMAIN}/truyen-tranh/${mangaId}`;
     }
 
-    private async DOMHTML(url: string): Promise<CheerioAPI> {
+    private async DOMHTML(url: string, param?: any): Promise<CheerioAPI> {
+        const cacheKey = `dom-${url}-${JSON.stringify(param ?? '')}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            return cached.data;
+        }
+
         const request = App.createRequest({
             url: url,
             method: 'GET',
         });
         const response = await this.requestManager.schedule(request, 1);
         this.CloudFlareError(response.status);
-        return this.cheerio.load(response.data as string);
+
+        const $ = this.cheerio.load(response.data as string);
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     CloudFlareError(status: number) {
@@ -198,18 +220,52 @@ export class NetTruyen implements SearchResultsProviding, MangaProviding, Chapte
     }
 
     async getSearchTags(): Promise<TagSection[]> {
+        const cacheKey = 'search-tags';
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
         const $ = await this.DOMHTML(`${baseUrl}/tim-truyen`);
-        return this.parser.parseTags($);
+        const tags = this.parser.parseTags($);
+
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
+    }
+
+    private async fetchMangaPageCached(mangaId: string): Promise<CheerioAPI> {
+        const cacheKey = `manga-page-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
+        const baseUrl = await this.getBaseUrl();
+        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+
+        this.cache.set(cacheKey, { data: $, timestamp: now });
+        return $;
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}`);
+        const $ = await this.fetchMangaPageCached(mangaId);
         return this.parser.parseMangaDetails($, mangaId);
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
+        const cacheKey = `chapters-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
+        }
+
         const baseUrl = await this.getBaseUrl();
 
         const request = App.createRequest({
@@ -229,13 +285,26 @@ export class NetTruyen implements SearchResultsProviding, MangaProviding, Chapte
         const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
         const chapterList: any[] = json?.data ?? [];
 
-        return this.parser.parseChapterList(chapterList);
+        const chapters = this.parser.parseChapterList(chapterList);
+        this.cache.set(cacheKey, { data: chapters, timestamp: now });
+        return chapters;
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const baseUrl = await this.getBaseUrl();
-        const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}/chuong-${chapterId}`);
-        const pages = this.parser.parseChapterDetails($);
+        const cacheKey = `chapter-details-${chapterId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const baseUrl = await this.getBaseUrl();
+            const $ = await this.DOMHTML(`${baseUrl}/truyen-tranh/${mangaId}/chuong-${chapterId}`);
+            pages = this.parser.parseChapterDetails($);
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
+        }
+
         return App.createChapterDetails({
             id: chapterId,
             mangaId: mangaId,
@@ -282,9 +351,20 @@ export class NetTruyen implements SearchResultsProviding, MangaProviding, Chapte
         params.push(`page=${page}`);
 
         const queryString = params.length > 0 ? `?${params.join('&')}` : '';
-        const url = `${baseUrl}${basePath}${queryString}`;
+        const fullUrl = `${baseUrl}${basePath}${queryString}`;
 
-        const $ = await this.DOMHTML(url);
+        const cacheKey = `search-${fullUrl}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(fullUrl);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
         const manga = this.parser.parseSearchResults($);
 
         // Kiểm tra trang tiếp theo dựa vào pagination active
@@ -329,7 +409,18 @@ export class NetTruyen implements SearchResultsProviding, MangaProviding, Chapte
             throw new Error(`Invalid homepage section ID: ${homepageSectionId}`);
         }
 
-        const $ = await this.DOMHTML(config.url);
+        const cacheKey = `view-more-${config.url}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let $: CheerioAPI;
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            $ = cached.data;
+        } else {
+            $ = await this.DOMHTML(config.url);
+            this.cache.set(cacheKey, { data: $, timestamp: now });
+        }
+
         const manga = config.parse($);
 
         const hasNextPage = manga.length > 0 && $('.pagination li.active + li:not(.disabled)').length > 0;

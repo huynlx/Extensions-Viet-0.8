@@ -61,17 +61,22 @@ export const TComicInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
 
+interface CacheEntry<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class TComic implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     stateManager = App.createSourceStateManager();
     parser = new Parser();
 
-    // 1. Thêm biến lưu trữ Promise cached tags
-    private tagsPromise?: Promise<TagSection[]>;
+    private cache = new Map<string, CacheEntry<any>>();
+    private readonly CACHE_TTL = 5 * 60 * 1000; // 5 phút mặc định
+    private readonly TAGS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho tags
+    private readonly MANGA_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho manga details
+    private readonly CHAPTER_DETAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 ngày cho chapter details
 
-    constructor(cheerio: CheerioAPI) {
-        // 2. Kích hoạt load tags ngay khi khởi tạo class
-        this.tagsPromise = this.getSearchTags();
-    }
+    constructor(cheerio: CheerioAPI) {}
 
     private async getBaseUrl(): Promise<string> {
         return await getDomain(this.stateManager);
@@ -98,13 +103,15 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
      * Helper gửi request API và tự động ký header x-request-id
      */
     async fetchAPI(endpoint: string, params: Record<string, any> = {}): Promise<any> {
-        const requestId = generateRequestId(endpoint, params);
+        const cacheKey = `api-${endpoint}-${JSON.stringify(params)}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        // 解碼 (Decrypt) để kiểm tra lại
-        // const decryptedPayload = decryptRequestId(
-        //     'U2FsdGVkX18OvlRu7pkxdpp/gqDetFPpHhOV1rFfHNYHTEyYu9qN/MjMeqB2c55CtviVZUhpCfHyAG781wiyW7nQlDz4nj5tvGgG9g9eaC2t+XNw1CeYazok4vFTkUYYQjSsZmP6pPPZJ44QdvG8zxXXEnOBVoPDR/fcSPxWyUA='
-        // );
-        // console.log('🔓 Decrypted Payload:', decryptedPayload);
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            return cached.data;
+        }
+
+        const requestId = generateRequestId(endpoint, params);
 
         const queryString = safeBuildQueryString(params);
         const fullUrl = `${API_BASE_URL}${endpoint}${queryString}`;
@@ -120,15 +127,12 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
             headers: headers,
         });
 
-        // 🌐 IN LỆNH CURL OUT TERMINAL DÙNG ĐỂ TEST/DEBUG
-        // console.log('\n--- 🚀 [cURL Request] ---');
-        // console.log(buildCurlCommand(fullUrl, 'GET', headers));
-        // console.log('-------------------------\n');
-
         const response = await this.requestManager.schedule(request, 1);
-        if (!response || !response.data) return null; // 👈 Tránh crash nếu response null
+        if (!response || !response.data) return null;
 
-        return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+        const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+        this.cache.set(cacheKey, { data: json, timestamp: now });
+        return json;
     }
 
     getMangaShareUrl(mangaId: string): string {
@@ -150,18 +154,19 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     }
 
     async getSearchTags(): Promise<TagSection[]> {
-        // 3. Nếu đã có Promise đang chạy hoặc hoàn thành, reuse kết quả đó luôn
-        if (this.tagsPromise) {
-            return await this.tagsPromise;
+        const cacheKey = 'search-tags';
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        if (cached && now - cached.timestamp < this.TAGS_CACHE_TTL) {
+            return cached.data;
         }
 
-        // Tạo promise fetch API thật
-        this.tagsPromise = (async () => {
-            const json = await this.fetchAPI(TComicEndpoints.CATEGORIES);
-            return this.parser.parseTags(json ?? []);
-        })();
+        const json = await this.fetchAPI(TComicEndpoints.CATEGORIES);
+        const tags = this.parser.parseTags(json ?? []);
 
-        return await this.tagsPromise;
+        this.cache.set(cacheKey, { data: tags, timestamp: now });
+        return tags;
     }
 
     /**
@@ -241,16 +246,13 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
 
         const fetchPromises = sections.map(async ({ endpoint, parse, section, status }) => {
             const queryParams = { ...params, status };
-            // Tạo key định danh dựa trên endpoint và query params
             const cacheKey = `${endpoint}_${JSON.stringify(queryParams)}`;
 
             try {
-                // Nếu endpoint với params này chưa có request nào đang chạy, tạo Promise mới
                 if (!endpointPromiseMap.has(cacheKey)) {
                     endpointPromiseMap.set(cacheKey, this.fetchAPI(endpoint, queryParams));
                 }
 
-                // Dùng chung kết quả JSON từ Promise duy nhất
                 const json = await endpointPromiseMap.get(cacheKey)!;
 
                 if (json) {
@@ -265,23 +267,18 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
         await Promise.allSettled(fetchPromises);
     }
 
-    // 1. Tạo cache lưu Promise trả về JSON theo mangaId
-    private apiCache = new Map<string, { promise: Promise<any>; timestamp: number }>();
-
-    // 2. Helper fetch API dùng chung có caching
     private async fetchMangaInfo(mangaId: string): Promise<any> {
+        const cacheKey = `manga-info-${mangaId}`;
         const now = Date.now();
-        const cached = this.apiCache.get(mangaId);
+        const cached = this.cache.get(cacheKey);
 
-        // Dùng lại kết quả nếu request diễn ra trong vòng 10 giây
-        if (cached && now - cached.timestamp < 10000) {
-            return cached.promise;
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            return cached.data;
         }
 
-        const promise = this.fetchAPI(`${TComicEndpoints.INFO}/${mangaId}`);
-        this.apiCache.set(mangaId, { promise, timestamp: now });
-
-        return promise;
+        const json = await this.fetchAPI(`${TComicEndpoints.INFO}/${mangaId}`);
+        this.cache.set(cacheKey, { data: json, timestamp: now });
+        return json;
     }
 
     async getMangaDetails(mangaId: string): Promise<any> {
@@ -295,7 +292,17 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const json = await this.fetchMangaInfo(mangaId);
+        const cacheKey = `chapters-${mangaId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
+
+        let json: any;
+        if (cached && now - cached.timestamp < this.MANGA_DETAIL_CACHE_TTL) {
+            json = cached.data;
+        } else {
+            json = await this.fetchMangaInfo(mangaId);
+            this.cache.set(cacheKey, { data: json, timestamp: now });
+        }
 
         if (!json || !json.data) {
             return [];
@@ -306,16 +313,26 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const endpoint = `${TComicEndpoints.CHAPTERS}/${chapterId}`;
-        const params = { comicId: mangaId, chapterId: chapterId };
+        const cacheKey = `chapter-details-${chapterId}`;
+        const now = Date.now();
+        const cached = this.cache.get(cacheKey);
 
-        const json = await this.fetchAPI(endpoint, params);
+        let pages: string[];
+        if (cached && now - cached.timestamp < this.CHAPTER_DETAIL_CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const endpoint = `${TComicEndpoints.CHAPTERS}/${chapterId}`;
+            const params = { comicId: mangaId, chapterId: chapterId };
 
-        if (!json) {
-            throw new Error(`Không thể lấy danh sách ảnh cho Chapter ID: ${chapterId}`);
+            const json = await this.fetchAPI(endpoint, params);
+
+            if (!json) {
+                throw new Error(`Không thể lấy danh sách ảnh cho Chapter ID: ${chapterId}`);
+            }
+
+            pages = this.parser.parseChapterDetails(json);
+            this.cache.set(cacheKey, { data: pages, timestamp: now });
         }
-
-        const pages = this.parser.parseChapterDetails(json);
 
         return App.createChapterDetails({
             id: chapterId,
@@ -355,7 +372,6 @@ export class TComic implements SearchResultsProviding, MangaProviding, ChapterPr
         const manga = this.parser.parseComicSection(json);
         const currentPage = Number(json.current_page) || page;
         const totalPages = Number(json.total_pages) || 0;
-        const comics = json.comics || [];
 
         const hasNextPage = totalPages > 0 ? currentPage < totalPages : manga.length >= limit;
 
