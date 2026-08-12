@@ -18,8 +18,14 @@ export class VinaHentaiParser {
 
             const title = $el.find('.text-txt-primary.line-clamp-1').text().trim() || $el.find('img').attr('alt') || '';
             const image = $el.find('img').attr('src') ?? '';
+
+            const rank = $el.find('span.w-5').text().trim();
             const views = $el.find('span.text-xs.font-medium').first().text().trim();
-            const subtitle = views ? `${views}` : undefined;
+
+            let subtitle = views ? views : undefined;
+            if (rank) {
+                subtitle = subtitle ? `#${rank} • ${subtitle}` : `#${rank}`;
+            }
 
             if (mangaId && title) {
                 items.push(
@@ -76,12 +82,18 @@ export class VinaHentaiParser {
 
             const mangaId = href.includes('/truyen-hentai/') ? href.split('/truyen-hentai/')[1]?.replace(/\/$/, '') || href : href;
 
+            // Lấy Subtitle từ div đầu tiên bên trong container .absolute inset-x-0.bottom-0.z-\[2\].min-w-0
+            const $bottomContainer = $(el).find('div.absolute.inset-x-0.bottom-0.z-\\[2\\].min-w-0');
+            const $firstDiv = $bottomContainer.children('div').first();
+            let subtitle = $firstDiv.find('span').first().text().trim() || undefined;
+
             if (mangaId && title) {
                 mangas.push(
                     App.createPartialSourceManga({
                         mangaId,
                         title,
                         image,
+                        subtitle,
                     })
                 );
             }
