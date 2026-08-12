@@ -41,6 +41,11 @@ export const VinaHentaiInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS,
 };
 
+interface CacheItem<T> {
+    data: T;
+    timestamp: number;
+}
+
 export class VinaHentai implements SearchResultsProviding, MangaProviding, ChapterProviding, HomePageSectionsProviding {
     stateManager = App.createSourceStateManager();
     parser = new VinaHentaiParser();
@@ -71,7 +76,7 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
     });
 
     private htmlCache = new Map<string, { data: CheerioAPI; timestamp: number }>();
-    private readonly CACHE_TTL = 30000; // 30 seconds cache TTL
+    private readonly CACHE_TTL = 60000; // 30 seconds cache TTL
 
     async DOMHTML(url: string, param?: any): Promise<CheerioAPI> {
         const now = Date.now();
@@ -119,19 +124,29 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         return this.parser.parseChapterList($);
     }
 
+    private chapterDetailCache = new Map<string, CacheItem<string[]>>();
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const baseUrl = await this.getBaseUrl();
-        const url = chapterId.startsWith('http') ? chapterId : `${baseUrl}${chapterId}`;
+        const now = Date.now();
+        const cached = this.chapterDetailCache.get(chapterId);
+        let pages: string[];
 
-        const req = App.createRequest({
-            url,
-            method: 'GET',
-        });
+        if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            pages = cached.data;
+        } else {
+            const baseUrl = await this.getBaseUrl();
+            const url = chapterId.startsWith('http') ? chapterId : `${baseUrl}${chapterId}`;
 
-        const response = await this.requestManager.schedule(req, 1);
-        const html = (response.data as string) ?? '';
+            const req = App.createRequest({
+                url,
+                method: 'GET',
+            });
 
-        const pages = this.parser.parseChapterDetails(html);
+            const response = await this.requestManager.schedule(req, 1);
+            const html = (response.data as string) ?? '';
+
+            pages = this.parser.parseChapterDetails(html);
+            this.chapterDetailCache.set(chapterId, { data: pages, timestamp: now });
+        }
 
         return App.createChapterDetails({
             id: chapterId,
