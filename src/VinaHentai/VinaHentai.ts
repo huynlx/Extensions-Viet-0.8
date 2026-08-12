@@ -76,7 +76,7 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
     });
 
     private htmlCache = new Map<string, { data: CheerioAPI; timestamp: number }>();
-    private readonly CACHE_TTL = 60000; // 30 seconds cache TTL
+    private readonly CACHE_TTL = 60000; // 60 seconds cache TTL
 
     async DOMHTML(url: string, param?: any): Promise<CheerioAPI> {
         const now = Date.now();
