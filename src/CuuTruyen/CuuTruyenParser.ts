@@ -3,6 +3,56 @@ import { CheerioAPI } from 'cheerio';
 import genreTagsJson from './includes/genreTags.json';
 
 export class Parser {
+    parseTop($: CheerioAPI): PartialSourceManga[] {
+        const tiles: PartialSourceManga[] = [];
+
+        // Lặp qua từng item truyện trong tab Rank
+        $('div.flex.gap-2.w-full')
+            .slice(0, 5)
+            .each((_, el) => {
+                const link = $(el).find('a[href*="/truyen/"]').first();
+                const href = link.attr('href');
+                const title = link.text().trim();
+
+                // Lấy URL ảnh bìa từ inline style background-image
+                const bg = $(el).find('div.cover-xs, div[style*="background-image"]').attr('style');
+                const image = bg?.match(/url\(['"]?(.*?)['"]?\)/)?.[1] ?? '';
+
+                // Lấy thứ hạng (#1, #2, #3...)
+                const rank = $(el).find('div.font-bold, div.text-xl').first().text().trim();
+
+                // Lấy số lượt xem
+                const viewsRaw = $(el).find('.abbreviation-number').attr('abbreviation');
+                let viewsText = '';
+                if (viewsRaw) {
+                    const viewsNum = parseInt(viewsRaw, 10);
+                    viewsText = isNaN(viewsNum) ? viewsRaw : `${viewsNum.toLocaleString('vi-VN')} lượt xem`;
+                } else {
+                    viewsText = $(el).find('span.text-sm').text().trim();
+                }
+
+                if (href && title) {
+                    const id = href.split('/truyen/')[1]?.replace(/\/$/, '') || href;
+
+                    // Tạo Subtitle hiển thị dạng: "#1 • 154.630 lượt xem"
+                    let subTitle = '';
+                    if (rank) subTitle += `#${rank}`;
+                    if (viewsText) subTitle += subTitle ? ` • ${viewsText}` : viewsText;
+
+                    tiles.push(
+                        App.createPartialSourceManga({
+                            mangaId: id,
+                            title,
+                            image,
+                            subtitle: subTitle,
+                        })
+                    );
+                }
+            });
+
+        return tiles;
+    }
+
     parseFeaturedSection($: CheerioAPI): PartialSourceManga[] {
         const featuredItems: PartialSourceManga[] = [];
         const processedIds = new Set<string>();

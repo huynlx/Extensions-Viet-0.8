@@ -169,6 +169,83 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         return this.cheerio.load(html);
     }
 
+    /**
+     * Gửi request Livewire switchTab tới component home-rank-tab
+     * @param tabIndex 1: Top tháng, 0: Top tuần (hoặc tùy biến theo tab của web)
+     */
+    // 1. Hàm helper lấy cả HTML lẫn serverMemo mới nhất từ response Livewire
+    private async fetchLivewireRankTab(baseUrl: string, tabIndex: number, $home: CheerioAPI): Promise<CheerioAPI | null> {
+        try {
+            const html = $home.html();
+
+            // 1. Trích xuất CSRF Token
+            const csrfMatch = html.match(/livewire_token\s*=\s*'([^']+)'/) || html.match(/name="csrf-token"\s+content="([^"]+)"/);
+            const csrfToken = csrfMatch?.[1] ?? '';
+            if (!csrfToken) return null;
+
+            // 2. Trích xuất initial data của component home-rank-tab
+            let rankTabData: any = null;
+            const matches = [...html.matchAll(/wire:initial-data="([^"]+)"/g)];
+            for (const match of matches) {
+                const rawJson = (match[1] ?? '')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>');
+                try {
+                    const parsed = JSON.parse(rawJson);
+                    if (parsed?.fingerprint?.name === 'home-rank-tab') {
+                        rankTabData = parsed;
+                        break;
+                    }
+                } catch {}
+            }
+
+            if (!rankTabData) return null;
+
+            // 3. Tạo Payload gửi Livewire
+            const payload = {
+                fingerprint: rankTabData.fingerprint,
+                serverMemo: rankTabData.serverMemo,
+                updates: [
+                    {
+                        type: 'callMethod',
+                        payload: {
+                            id: 'switchTabCall',
+                            method: 'switchTab',
+                            params: [tabIndex],
+                        },
+                    },
+                ],
+            };
+
+            const req = App.createRequest({
+                url: `${baseUrl}/livewire/message/home-rank-tab`,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Livewire': 'true',
+                    Accept: 'text/html, application/xhtml+xml',
+                    Referer: `${baseUrl}/`,
+                },
+                data: JSON.stringify(payload),
+            });
+
+            const response = await this.requestManager.schedule(req, 1);
+            if (response.status !== 200) return null;
+
+            const resJson = JSON.parse((response.data as string) ?? '{}');
+            const renderedHtml = resJson?.effects?.html ?? resJson?.responses?.[0]?.effects?.html ?? '';
+
+            if (!renderedHtml) return null;
+            return this.cheerio.load(renderedHtml);
+        } catch (e) {
+            console.error('Lỗi fetch Livewire rank tab:', e);
+            return null;
+        }
+    }
+
     async getMangaShareUrl(mangaId: string): Promise<string> {
         const baseUrl = await this.getBaseUrl();
         return `${baseUrl}/truyen/${mangaId}`;
@@ -181,6 +258,8 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
         const sections = [
             App.createHomeSection({ id: 'featured', title: 'Truyện Hot', containsMoreItems: false, type: HomeSectionType.featured }),
             App.createHomeSection({ id: 'new_updated', title: 'Mới Cập Nhật', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
+            App.createHomeSection({ id: 'top_week', title: 'Top Truyện Tuần', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
+            App.createHomeSection({ id: 'top_month', title: 'Top Truyện Tháng', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
             App.createHomeSection({ id: 'recommend', title: 'Truyện Đề Cử', containsMoreItems: false, type: HomeSectionType.singleRowLarge }),
             App.createHomeSection({ id: 'favorite', title: 'Xem Nhiều', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
             App.createHomeSection({ id: 'new_added', title: 'Mới Nhất', containsMoreItems: true, type: HomeSectionType.singleRowNormal }),
@@ -200,7 +279,27 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
             return domCache.get(url)!;
         };
 
+        // Load HTML trang chủ 1 lần duy nhất
+        const $home = await fetchCachedDOM(baseUrl);
+
         for (const section of sections) {
+            // Top Tuần: Parse từ DOM trang chủ gốc
+            if (section.id === 'top_week') {
+                section.items = this.parser.parseTop($home);
+                sectionCallback(section);
+                continue;
+            }
+
+            // Top Tháng: Gọi Livewire switchTab(1) truyền kèm $home
+            if (section.id === 'top_month') {
+                const $tab = await this.fetchLivewireRankTab(baseUrl, 1, $home);
+                if ($tab) {
+                    section.items = this.parser.parseTop($tab);
+                }
+                sectionCallback(section);
+                continue;
+            }
+
             let url: string;
             switch (section.id) {
                 case 'featured':
