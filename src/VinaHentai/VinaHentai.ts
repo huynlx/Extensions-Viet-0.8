@@ -303,14 +303,14 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
                 type: HomeSectionType.singleRowNormal,
             }),
             App.createHomeSection({
-                id: 'popular',
-                title: 'TRUYỆN HENTAI XEM NHIỀU',
+                id: 'all_time',
+                title: 'BXH MỌI THỜI ĐẠI',
                 containsMoreItems: true,
-                type: HomeSectionType.singleRowNormal,
+                type: HomeSectionType.singleRowLarge,
             }),
             App.createHomeSection({
-                id: 'all_time',
-                title: 'MỌI THỜI ĐẠI',
+                id: 'popular',
+                title: 'TRUYỆN HENTAI XEM NHIỀU',
                 containsMoreItems: true,
                 type: HomeSectionType.singleRowNormal,
             }),
@@ -321,11 +321,11 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         }
 
         // Fetch Featured, Latest, Popular, and All-time concurrently to load much faster
-        const [featuredResult, latestResult, popularResult, allTimeResult] = await Promise.allSettled([
+        const [featuredResult, latestResult, allTimeResult, popularResult] = await Promise.allSettled([
             this.DOMHTML(`${baseUrl}`),
             this.DOMHTML(`${baseUrl}/danh-sach/?page=1&sort=updatedAt`),
-            this.DOMHTML(`${baseUrl}/danh-sach/?page=1&sort=views`),
             this.DOMHTML(`${baseUrl}/leaderboard/manga?page=1&period=all-time`),
+            this.DOMHTML(`${baseUrl}/danh-sach/?page=1&sort=views`),
         ]);
 
         if (featuredResult.status === 'fulfilled') {
@@ -338,13 +338,13 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(sections[1]!);
         }
 
-        if (popularResult.status === 'fulfilled') {
-            sections[2]!.items = this.parser.parseMangaList(popularResult.value);
+        if (allTimeResult.status === 'fulfilled') {
+            sections[2]!.items = this.parser.parseAllTimeSection(allTimeResult.value);
             sectionCallback(sections[2]!);
         }
 
-        if (allTimeResult.status === 'fulfilled') {
-            sections[3]!.items = this.parser.parseAllTimeSection(allTimeResult.value);
+        if (popularResult.status === 'fulfilled') {
+            sections[3]!.items = this.parser.parseMangaList(popularResult.value);
             sectionCallback(sections[3]!);
         }
     }
