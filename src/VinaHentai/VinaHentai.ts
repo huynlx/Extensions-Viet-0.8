@@ -19,7 +19,7 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { VinaHentaiParser } from './VinaHentaiParser';
+import { isLastPageAllTime, isLastPageSearch, VinaHentaiParser } from './VinaHentaiParser';
 
 const DEFAULT_DOMAIN = 'https://vinahentai.blog';
 
@@ -210,18 +210,56 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         const page = metadata?.page ?? 1;
 
         const keyword = query.title?.trim() ?? '';
-        const genre = query.includedTags?.[0]?.id;
 
-        let fullUrl = '';
-        let isSearch = false;
-
+        // Nếu có keyword tìm kiếm, ưu tiên xử lý search query giống Kotlin
         if (keyword) {
-            isSearch = true;
-            fullUrl = `${baseUrl}/search?page=${page}&q=${encodeURIComponent(keyword)}`;
-        } else if (genre) {
-            fullUrl = `${baseUrl}/genres/${genre}?page=${page}`;
+            const url = `${baseUrl}/search?page=${page}&q=${encodeURIComponent(keyword)}`;
+            const cacheKey = `search-${url}`;
+            const now = Date.now();
+            const cached = this.cache.get(cacheKey);
+
+            let $: CheerioAPI;
+            if (cached && now - cached.timestamp < this.CACHE_TTL) {
+                $ = cached.data;
+            } else {
+                $ = await this.DOMHTML(url);
+                this.cache.set(cacheKey, { data: $, timestamp: now });
+            }
+
+            const tiles = this.parser.parseSearchManga($);
+            const hasNextPage = this.parser.parseHasNextPage($, tiles.length, url, true);
+
+            return App.createPagedResults({
+                results: tiles,
+                metadata: hasNextPage ? { page: page + 1 } : undefined,
+            });
+        }
+
+        // Parse các bộ lọc từ includedTags giống logic Kotlin
+        let genreSlug: string | undefined = undefined;
+        let sort = 'updatedAt';
+        let status = '';
+
+        if (query.includedTags && query.includedTags.length > 0) {
+            for (const tag of query.includedTags) {
+                const sectionId = tag.id; // Hoặc dựa vào cấu trúc tag nếu bạn gán id phân loại, ở đây xét theo id của tag thuộc các section tương ứng
+                // Kiểm tra xem tag thuộc section nào dựa trên danh sách ID hoặc duyệt qua danh sách tags
+                if (['updatedAt', 'views', 'likes', 'oldest'].includes(tag.id)) {
+                    sort = tag.id;
+                } else if (['', 'ongoing', 'completed'].includes(tag.id)) {
+                    status = tag.id;
+                } else if (tag.id && tag.id !== 'all') {
+                    genreSlug = tag.id;
+                }
+            }
+        }
+
+        // Xây dựng URL tương ứng với Kotlin logic
+        let fullUrl = '';
+        if (genreSlug) {
+            fullUrl = `${baseUrl}/genres/${genreSlug}?page=${page}&sort=${sort}${status ? `&status=${status}` : ''}`;
         } else {
-            fullUrl = `${baseUrl}/danh-sach?page=${page}`;
+            fullUrl = `${baseUrl}/danh-sach?page=${page}&sort=${sort}${status ? `&status=${status}` : ''}`;
         }
 
         const cacheKey = `search-${fullUrl}`;
@@ -236,12 +274,13 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
             this.cache.set(cacheKey, { data: $, timestamp: now });
         }
 
-        const tiles = isSearch ? this.parser.parseSearchManga($) : this.parser.parseMangaList($);
-        const hasNextPage = this.parser.parseHasNextPage($, tiles.length, fullUrl, isSearch);
+        const tiles = this.parser.parseMangaList($);
+
+        const isLastPage = isLastPageSearch($);
 
         return App.createPagedResults({
             results: tiles,
-            metadata: hasNextPage ? { page: page + 1 } : undefined,
+            metadata: !isLastPage ? { page: page + 1 } : undefined,
         });
     }
 
@@ -252,14 +291,26 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
 
         const sections = [
             App.createHomeSection({
-                id: 'popular',
-                title: 'Truyện Phổ Biến',
+                id: 'featured',
+                title: 'TRUYỆN HENTAI HOT',
+                containsMoreItems: false,
+                type: HomeSectionType.featured,
+            }),
+            App.createHomeSection({
+                id: 'latest',
+                title: 'TRUYỆN HENTAI MỚI',
                 containsMoreItems: true,
                 type: HomeSectionType.singleRowNormal,
             }),
             App.createHomeSection({
-                id: 'latest',
-                title: 'Mới Cập Nhật',
+                id: 'popular',
+                title: 'TRUYỆN HENTAI XEM NHIỀU',
+                containsMoreItems: true,
+                type: HomeSectionType.singleRowNormal,
+            }),
+            App.createHomeSection({
+                id: 'all_time',
+                title: 'MỌI THỜI ĐẠI',
                 containsMoreItems: true,
                 type: HomeSectionType.singleRowNormal,
             }),
@@ -269,14 +320,16 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
             sectionCallback(section);
         }
 
-        // Fetch Popular and Latest concurrently to load much faster
-        const [popularResult, latestResult] = await Promise.allSettled([
-            this.DOMHTML(`${baseUrl}/danh-sach/?page=1&sort=views`),
+        // Fetch Featured, Latest, Popular, and All-time concurrently to load much faster
+        const [featuredResult, latestResult, popularResult, allTimeResult] = await Promise.allSettled([
+            this.DOMHTML(`${baseUrl}`),
             this.DOMHTML(`${baseUrl}/danh-sach/?page=1&sort=updatedAt`),
+            this.DOMHTML(`${baseUrl}/danh-sach/?page=1&sort=views`),
+            this.DOMHTML(`${baseUrl}/leaderboard/manga?page=1&period=all-time`),
         ]);
 
-        if (popularResult.status === 'fulfilled') {
-            sections[0]!.items = this.parser.parseMangaList(popularResult.value);
+        if (featuredResult.status === 'fulfilled') {
+            sections[0]!.items = this.parser.parseFeaturedSection(featuredResult.value);
             sectionCallback(sections[0]!);
         }
 
@@ -284,14 +337,33 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
             sections[1]!.items = this.parser.parseMangaList(latestResult.value);
             sectionCallback(sections[1]!);
         }
+
+        if (popularResult.status === 'fulfilled') {
+            sections[2]!.items = this.parser.parseMangaList(popularResult.value);
+            sectionCallback(sections[2]!);
+        }
+
+        if (allTimeResult.status === 'fulfilled') {
+            sections[3]!.items = this.parser.parseAllTimeSection(allTimeResult.value);
+            sectionCallback(sections[3]!);
+        }
     }
 
     async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const baseUrl = await this.getBaseUrl();
         const page: number = metadata?.page ?? 1;
-        const sort = homepageSectionId === 'popular' ? 'views' : 'updatedAt';
 
-        const url = `${baseUrl}/danh-sach/?page=${page}&sort=${sort}`;
+        let url = '';
+        let isAllTime = false;
+
+        if (homepageSectionId === 'all_time') {
+            isAllTime = true;
+            url = `${baseUrl}/leaderboard/manga?page=${page}&period=all-time`;
+        } else {
+            const sort = homepageSectionId === 'popular' ? 'views' : 'updatedAt';
+            url = `${baseUrl}/danh-sach/?page=${page}&sort=${sort}`;
+        }
+
         const cacheKey = `view-more-${url}`;
         const now = Date.now();
         const cached = this.cache.get(cacheKey);
@@ -304,12 +376,12 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
             this.cache.set(cacheKey, { data: $, timestamp: now });
         }
 
-        const mangas = this.parser.parseMangaList($);
-        const hasNextPage = mangas.length >= 24;
+        const mangas = isAllTime ? this.parser.parseAllTimeSection($) : this.parser.parseMangaList($);
+        const islastPage = isAllTime ? isLastPageAllTime($) : isLastPageSearch($);
 
         return App.createPagedResults({
             results: mangas,
-            metadata: hasNextPage ? { page: page + 1 } : undefined,
+            metadata: !islastPage ? { page: page + 1 } : undefined,
         });
     }
 }

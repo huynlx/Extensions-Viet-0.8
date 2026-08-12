@@ -8,6 +8,61 @@ export class VinaHentaiParser {
 
     // ============================ MANGA LIST / SEARCH ============================
 
+    public parseAllTimeSection($: CheerioAPI): PartialSourceManga[] {
+        const items: PartialSourceManga[] = [];
+
+        $('a[href^="/truyen-hentai/"]').each((_, element) => {
+            const $el = $(element);
+            const href = $el.attr('href') ?? '';
+            const mangaId = href.split('/').pop() ?? '';
+
+            const title = $el.find('.text-txt-primary.line-clamp-1').text().trim() || $el.find('img').attr('alt') || '';
+            const image = $el.find('img').attr('src') ?? '';
+            const views = $el.find('span.text-xs.font-medium').first().text().trim();
+            const subtitle = views ? `${views}` : undefined;
+
+            if (mangaId && title) {
+                items.push(
+                    App.createPartialSourceManga({
+                        mangaId,
+                        title: title,
+                        image: image,
+                        subtitle: subtitle,
+                    })
+                );
+            }
+        });
+
+        return items;
+    }
+
+    public parseFeaturedSection($: CheerioAPI): PartialSourceManga[] {
+        const items: PartialSourceManga[] = [];
+
+        $('.banner-desktop-card').each((_, element) => {
+            const $el = $(element);
+            const href = $el.attr('href') ?? '';
+            const mangaId = href.split('/').pop() ?? '';
+
+            const title = $el.find('div.mt-1.5.truncate').attr('title') || $el.find('img').attr('alt') || '';
+            const image = $el.find('img').attr('src') ?? '';
+            const subtitle = $el.find('span.text-white\\/90.font-semibold.truncate').attr('title') || undefined;
+
+            if (mangaId && title) {
+                items.push(
+                    App.createPartialSourceManga({
+                        mangaId,
+                        title: title.trim(),
+                        image: image,
+                        subtitle: subtitle?.trim(),
+                    })
+                );
+            }
+        });
+
+        return items;
+    }
+
     public parseMangaList($: CheerioAPI): PartialSourceManga[] {
         const mangas: PartialSourceManga[] = [];
 
@@ -172,15 +227,13 @@ export class VinaHentaiParser {
         return Array.from(new Set(matches));
     }
 
-    public parseGenres($: CheerioAPI): TagSection[] {
+    parseGenres($: CheerioAPI): TagSection[] {
         const genreTags: Tag[] = [];
 
         // 1. Lấy thể loại động từ HTML (giữ nguyên logic bóc tách URL /genres/ của bạn)
         $('a[href*="/genres/"]').each((_, el) => {
             const href = $(el).attr('href') || '';
-
             const slug = href.split('/genres/')[1]?.split('?')[0]?.split('/')[0]?.trim();
-
             const name = $(el).text().trim();
 
             if (slug && name) {
@@ -255,4 +308,85 @@ export class VinaHentaiParser {
             return true;
         });
     }
+}
+
+export function isLastPageAllTime($: CheerioAPI): boolean {
+    const $pagination = $('nav[aria-label="Phân trang manga mọi thời đại"]');
+    if ($pagination.length === 0) {
+        return true;
+    }
+
+    const $pageLinks = $pagination.find('a[href*="page="]');
+    if ($pageLinks.length === 0) {
+        return true;
+    }
+
+    let maxPage = 1;
+    let currentPage = 1;
+
+    $pageLinks.each((_, el) => {
+        const $el = $(el);
+        const href = $el.attr('href') || '';
+        const match = href.match(/page=(\d+)/);
+        const pageNum = match ? parseInt(match[1] || '1', 10) : 1;
+
+        if (pageNum > maxPage) {
+            maxPage = pageNum;
+        }
+
+        if ($el.attr('aria-current') === 'page') {
+            currentPage = pageNum;
+        }
+    });
+
+    // Nếu không tìm thấy trang hiện tại qua aria-current, thử check trang đầu tiên (không có param page)
+    if (currentPage === 1 && $pagination.find('a[href$="period=all-time"]').length > 0 && !$pagination.find('a[href*="page=2"]').length) {
+        // Có thể trang 1
+    }
+
+    return currentPage >= maxPage;
+}
+
+export function isLastPageSearch($: CheerioAPI): boolean {
+    const $lastButton = $('button[aria-label="Tới trang cuối"]');
+    if ($lastButton.length === 0) {
+        return true;
+    }
+    const isDisabled = $lastButton.attr('disabled') !== undefined || $lastButton.hasClass('cursor-not-allowed');
+    if (isDisabled) {
+        return true;
+    }
+
+    // Kiểm tra xem trang hiện tại có phải là trang cuối trong danh sách phân trang hay không
+    const $currentPageBtn = $('button[aria-current="page"]');
+    if ($currentPageBtn.length > 0) {
+        const currentPageTitle = $currentPageBtn.attr('title') || '';
+        const currentPageNum = parseInt(currentPageTitle.replace(/\D/g, ''), 10);
+
+        let maxPage = currentPageNum;
+        $('button[title^="Trang "]').each((_, el) => {
+            const title = $(el).attr('title') || '';
+            const pageNum = parseInt(title.replace(/\D/g, ''), 10);
+            if (!isNaN(pageNum) && pageNum > maxPage) {
+                maxPage = pageNum;
+            }
+        });
+
+        // Nếu nút trang cuối cùng trong dãy số bằng hoặc nhỏ hơn trang hiện tại và không còn nút số trang nào lớn hơn
+        let hasHigherPage = false;
+        $('button[title^="Trang "]').each((_, el) => {
+            const title = $(el).attr('title') || '';
+            const pageNum = parseInt(title.replace(/\D/g, ''), 10);
+            if (!isNaN(pageNum) && pageNum > currentPageNum) {
+                hasHigherPage = true;
+            }
+        });
+
+        if (!hasHigherPage) {
+            // Kiểm tra thêm nếu không có nút trang cao hơn, xem nút "Tới trang cuối" có active không (thường nếu đang ở trang cuối thì button "Cuối" cũng sẽ bị disable hoặc không đổi trang được)
+            return true;
+        }
+    }
+
+    return false;
 }
