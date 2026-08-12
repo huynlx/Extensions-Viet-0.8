@@ -383,3 +383,13 @@ export class Parser {
         ];
     }
 }
+
+export const isLastPage = ($: CheerioAPI): boolean => {
+    const currentItem = $('ul.pagination-list li:has(.is-current)');
+
+    // Nếu không tìm thấy thanh phân trang -> Chỉ có 1 trang (coi như trang cuối)
+    if (!currentItem.length) return true;
+
+    // Nếu đằng sau thẻ li chứa 'is-current' không còn thẻ li nào nữa -> Đã ở trang cuối
+    return currentItem.next('li').length === 0;
+};

@@ -21,7 +21,7 @@ import {
     TagSection,
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
-import { Parser } from './BuonDuaParser';
+import { isLastPage, Parser } from './BuonDuaParser';
 import { domainSettings, getDomain, resetSettings } from './BuonDuaSetting';
 
 const DOMAIN = 'https://buondua.com';
@@ -268,12 +268,11 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
         const $ = await this.DOMHTML(url);
         const manga = this.parser.parseSearchResults($);
 
-        // Kiểm tra xem có trang kế tiếp hay không (nếu mảng danh sách trả về rỗng thì hết trang)
-        const hasNextPage = $('.pagination-next').length > 0;
+        const lastPage = isLastPage($);
 
         return App.createPagedResults({
             results: manga,
-            metadata: hasNextPage ? { page: page + 1 } : undefined,
+            metadata: lastPage ? undefined : { page: page + 1 },
         });
     }
 
@@ -314,12 +313,11 @@ export class BuonDua implements SearchResultsProviding, MangaProviding, ChapterP
             });
         }
 
-        // Kiểm tra nút Next hoặc phân trang trong DOM Bulma (.pagination-next)
-        const hasNextButton = $('.pagination-next').length > 0;
+        const lastPage = isLastPage($);
 
         return App.createPagedResults({
             results: manga,
-            metadata: hasNextButton ? { page: page + 1 } : undefined,
+            metadata: lastPage ? undefined : { page: page + 1 },
         });
     }
 
