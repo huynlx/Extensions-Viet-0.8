@@ -9,7 +9,9 @@
   "scripts": {
     "bundle": "npx paperback bundle",
     "serve": "npx paperback serve",
-    "test": "npx paperback test"
+    "test": "npx paperback test",
+    "predeploy": "paperback bundle",
+    "deploy": "gh-pages -d bundles"
   },
   "devDependencies": {
     "@types/cheerio": "0.22.21",
@@ -26,6 +28,7 @@
     "cheerio": "1.0.0-rc.12",
     "crypto-js": "^3.3.0",
     "date-fns": "^4.4.0",
-    "entities": "^4.4.0"
+    "entities": "^4.4.0",
+    "gh-pages": "^6.3.0"
   }
 }

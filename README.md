@@ -1,54 +1,66 @@
-# Vietnamese Source for Paperback 0.8
+# Vietnamese Paperback Sources Collection
 
-> A premium source toolkit for Vietnamese manga websites, built for Paperback 0.8 with modular architecture, maintainable parsing logic, and multi-source extensibility.
+> Multi-source extension pack for Paperback 0.8, built to support a wide range of Vietnamese manga and comic websites through a modular, reusable source architecture.
 
-[![Build Verified](https://img.shields.io/badge/build-verified-success)](https://github.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Paperback 0.8](https://img.shields.io/badge/Paperback-0.8-orange)](https://www.readpaperback.app/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 
 ## Overview
 
-This repository is a professional source package for Paperback 0.8, created to support Vietnamese manga websites beyond a single provider. It is designed as a reusable foundation for building, maintaining, and expanding source modules for multiple publishers and domains.
+This repository brings together multiple source modules for Vietnamese comic platforms under a single, maintainable Paperback 0.8 project. Instead of focusing on one website, it is designed as a reusable source library where each provider has its own parser, settings, and integration entry points while sharing the same overall architecture.
 
-The project emphasizes:
-
-- clean separation of source logic and HTML parsing
-- support for multiple Vietnamese source providers
-- dynamic domain configuration
-- maintainable request and parser architecture
-- rapid adaptation to site structure changes
+The goal is simple: provide a scalable foundation for reading, scraping, and adapting Vietnamese comic sources with cleaner structure and easier long-term maintenance.
 
 ## Why this project
 
-Many source projects are built around a single website and become difficult to scale. This repository follows a more robust pattern:
+Most source projects are limited to a single host and become fragile as the target site changes. This project follows a more flexible approach:
 
-- one source implementation can be reused as a template
-- parsing logic can be adapted per publisher
-- domain settings are configurable without code rewrites
-- the structure is ready for future Vietnamese source additions
+- each source is isolated and independently maintained
+- the shared architecture can be reused across new publishers
+- parser logic is separated from source configuration
+- domains and request behavior can be adapted without rewriting the entire project
+- new providers can be added with a consistent pattern
 
-## Core Features
+## Core capabilities
 
-- Search and tag discovery
-- Homepage section generation
-- Featured, hot, and recently updated content
-- Manga detail fetching
-- Chapter list extraction
-- Chapter page parsing and image loading
-- Custom source settings and domain switching
-- Request interceptors and header management
-- Cloudflare error handling support
+- search and lookup across source providers
+- homepage and featured content parsing
+- manga details and metadata extraction
+- chapter list retrieval
+- chapter page image extraction
+- request and source configuration management
+- domain switching and source-specific settings
+- modular extension for future website additions
 
-## Tech Stack
+## Supported sources
 
-- TypeScript
-- Paperback 0.8 toolchain
-- Cheerio for HTML parsing
-- Paperback source runtime APIs
-- Modular source architecture
+This repository currently includes implementations for the following sources:
 
-## Repository Structure
+| Source     | Coverage                          | Notes                                      |
+| ---------- | --------------------------------- | ------------------------------------------ |
+| BuonDua    | Vietnamese comic portal           | General source integration                 |
+| CuuTruyen  | Comic reading platform            | Search, catalog, and chapter parsing       |
+| FoxTruyen  | Manga/comic content source        | Structured site parsing                    |
+| HentaiCube | Adult-themed content              | Specialised source module                  |
+| HentaiVN   | Adult and manga content           | Additional parser variant                  |
+| HentaiVNX  | Hentai/comic provider             | Domain-driven integration                  |
+| HotGirl    | Visual content source             | Source-specific adaptation                 |
+| MauLon     | Genre-focused comic source        | Parser-based extraction                    |
+| MiMiHentai | Adult content portal              | Site-specific handling                     |
+| Misskon    | Vietnamese manga site             | Catalog and detail integration             |
+| NetTruyen  | Popular comic platform            | One of the core source modules             |
+| NhatTruyen | Vietnamese comic source           | Mature source structure and parser pattern |
+| NudeBird   | Specialised source                | Custom integration                         |
+| SayHentai  | Hentai content provider           | Parser and URL-specific logic              |
+| TComic     | Comic portal                      | Search and chapter support                 |
+| TruyenQQ   | Publisher/reader source           | Popular content extraction                 |
+| ViHentai   | Hindi/Asian-themed source variant | Source-specific adaptation                 |
+| VinaHentai | Hentai-content source             | Maintained as an independent module        |
+
+These modules reflect a broader strategy: one shared project, many source implementations, each adapted to a different website structure and data pattern.
+
+## Project structure
 
 ```text
 Extensions-Viet-0.8/
@@ -56,37 +68,76 @@ Extensions-Viet-0.8/
 ├── README.md
 ├── package.json
 ├── tsconfig.json
+├── jest.config.js
 ├── mockup.html
 ├── bundles/
-│   └── index.html
+│   ├── index.html
+│   └── <generated source bundles>
+├── common/
+│   ├── index.ts
+│   ├── index.js
+│   ├── index.d.ts
+│   └── QueryCache.ts
 ├── src/
-│   └── NhatTruyen/
-│       ├── NhatTruyen.ts
-│       ├── NhatTruyenParser.ts
-│       ├── NhatTruyenSetting.ts
-│       └── includes/
-│           └── icon.png
+│   ├── BuonDua/
+│   ├── CuuTruyen/
+│   ├── FoxTruyen/
+│   ├── HentaiCube/
+│   ├── HentaiVN/
+│   ├── HentaiVNX/
+│   ├── HotGirl/
+│   ├── MauLon/
+│   ├── MiMiHentai/
+│   ├── Misskon/
+│   ├── NetTruyen/
+│   ├── NhatTruyen/
+│   ├── NudeBird/
+│   ├── SayHentai/
+│   ├── TComic/
+│   ├── TruyenQQ/
+│   ├── ViHentai/
+│   ├── VinaHentai/
+│   └── ...
+├── tests/
+│   ├── CuuTruyenTag.test.ts
+│   ├── TComic.test.ts
+│   └── TruyenQQ.test.ts
 ├── tmp/
-│   └── generated build artifacts
-└── extensible structure for additional Vietnamese sources
+│   └── generated or temporary build artifacts
+└── draft/
+    └── experimental sources and archived work
 ```
 
-## Supported Use Cases
+## Architecture
 
-This project is suitable for:
+Each source generally follows the same layered pattern:
 
-- building a new Paperback source from a Vietnamese publisher
-- adapting an existing source when the site layout changes
-- managing multiple websites using a single source architecture pattern
-- testing domain changes without rewriting the source logic
+### 1. Source entry file
+
+The main source class defines the provider identity, metadata, request setup, homepage integration, and source behavior.
+
+### 2. Parser layer
+
+The parser handles the site-specific HTML or payload scraping logic. This is typically where selectors, transformations, and extraction rules are implemented.
+
+### 3. Settings module
+
+The settings file manages base URL configuration, domain switching, source preferences, and other source-specific runtime options.
+
+### 4. Shared support modules
+
+Common utilities and data helpers live in the shared folders and are reused across providers.
+
+This separation makes the project easier to maintain when a target website changes its structure or when a new provider needs to be supported.
 
 ## Requirements
 
 - Node.js 18+
 - npm
-- Paperback development environment
+- Paperback 0.8 development environment
+- TypeScript toolchain and compatible dependencies
 
-## Quick Start
+## Quick start
 
 Install dependencies:
 
@@ -94,98 +145,70 @@ Install dependencies:
 npm install
 ```
 
-Run the local Paperback source server:
+Run the local Paperback source preview or dev server:
 
 ```bash
 npm run serve
 ```
 
-Build the extension bundle:
+Build the bundle:
 
 ```bash
 npm run bundle
 ```
 
-## Source Architecture
-
-### 1. Main source entry
-
-The core source implementation is defined in `src/NhatTruyen/NhatTruyen.ts` and handles:
-
-- source metadata
-- request manager setup
-- source menu configuration
-- homepage data integration
-- search, manga details, and chapter collection
-
-### 2. Parser layer
-
-The parser logic is defined in `src/NhatTruyen/NhatTruyenParser.ts`. This is the main file used to adapt the source to the exact HTML structure of a site.
-
-### 3. Settings and domain management
-
-Domain configuration and source settings are handled in `src/NhatTruyen/NhatTruyenSetting.ts`, including:
-
-- custom base URL selection
-- domain reset
-- connection testing
-- UI-based configuration for source behavior
-
-## Common Maintenance Points
-
-When a source website changes, the most common places to inspect are:
-
-1. Search route patterns in `src/NhatTruyen/NhatTruyen.ts`
-2. Image selectors in `src/NhatTruyen/NhatTruyenParser.ts`
-3. Chapter list parsing in `src/NhatTruyen/NhatTruyenParser.ts`
-4. Homepage section extraction in `src/NhatTruyen/NhatTruyenParser.ts`
-5. Domain handling in `src/NhatTruyen/NhatTruyenSetting.ts`
-
-## Troubleshooting
-
-### Blank chapter images
-
-If chapter pages are loading but images are missing, inspect the parser selectors responsible for chapter image extraction.
-
-### Search returns no results
-
-Verify the request URL and the result selectors. If the site moves to a new query format, update the source logic accordingly.
-
-### Domain-related failures
-
-If a site changes hostnames or redirect patterns, update the source settings to the correct base domain.
-
-### Cloudflare and blocked requests
-
-If the source encounters Cloudflare or 403/429 responses, validate request headers and the configured URL before changing the parser logic.
-
-## Verified Build Status
-
-This project was successfully verified with:
+Run the automated tests:
 
 ```bash
-npx paperback bundle
+npm test
 ```
 
-The command completed successfully, confirming the current source bundle can be generated in this environment.
+Deploy the generated bundle to GitHub Pages:
 
-## Roadmap
+```bash
+npm run deploy
+```
 
-- Expand the source architecture to additional Vietnamese publishers
-- Improve modular reusable source templates
-- Add stronger domain fallback logic
-- Refine parser resilience for frequent website changes
+## Development workflow
+
+To add or update a source:
+
+1. create or edit the source folder under `src/`
+2. implement the main source class and parser logic
+3. define settings and domain patterns if needed
+4. validate extraction rules against the website structure
+5. test the behavior with the source’s existing test setup
+6. run the bundle to confirm the project still builds correctly
+
+## Common maintenance points
+
+When a site changes, the most likely issues are in:
+
+- search request formatting
+- homepage section selectors
+- manga detail parsing
+- chapter list extraction
+- chapter page image selectors
+- domain configuration and redirects
+
+## Notes on compatibility
+
+This project is specifically built around the Paperback 0.8 source framework and follows a source-driven design that is optimized for Vietnamese web comic ecosystems. It is intentionally modular so the same patterns can be reused for newer sources without starting from scratch.
 
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
-## Maintainer
+## Contribution
 
-- Author: Lê Đại Thiện Nhân
-- Project: Vietnamese Extensions (0.8)
-- Focus: multi-source Vietnamese Paperback development
+Contributions are welcome for:
 
-## Closing Note
+- adding new providers
+- improving parser resilience
+- fixing extraction issues for existing sources
+- documenting source-specific behavior
+- refactoring shared code for maintainability
 
-This repository is built as a scalable Vietnamese source foundation for Paperback 0.8, not limited to a single provider. Its architecture is designed to evolve with the ecosystem, support multiple websites, and remain easy to extend as the target publishers change over time.
+## Final note
+
+This repository is more than a single extension — it is a collection of Vietnamese source implementations sharing the same professional architecture. It is designed to be extensible, maintainable, and practical for long-term Paperback development.
