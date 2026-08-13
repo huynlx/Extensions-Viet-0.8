@@ -162,7 +162,7 @@ export class NudeBird implements SearchResultsProviding, MangaProviding, Chapter
 
         const newUpdatedSection = App.createHomeSection({
             id: 'new_updated',
-            title: 'RECENT POSTS',
+            title: 'HOME',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });

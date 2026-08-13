@@ -160,9 +160,16 @@ export class HotGirl implements SearchResultsProviding, MangaProviding, ChapterP
             type: HomeSectionType.featured,
         });
 
-        const newUpdatedSection = App.createHomeSection({
-            id: 'new_updated',
-            title: 'RECENT POSTS',
+        const homeSection = App.createHomeSection({
+            id: 'home',
+            title: 'HOME',
+            containsMoreItems: true,
+            type: HomeSectionType.singleRowNormal,
+        });
+
+        const latestSection = App.createHomeSection({
+            id: 'latest',
+            title: 'LATEST POSTS',
             containsMoreItems: true,
             type: HomeSectionType.singleRowNormal,
         });
@@ -196,7 +203,7 @@ export class HotGirl implements SearchResultsProviding, MangaProviding, ChapterP
         });
 
         // 2. Callback gửi các khung rỗng lên UI ngay lập tức
-        const sections = [featuredSection, newUpdatedSection, mayLikeSection, top3DaysSection, top7DaysSection, top30DaysSection];
+        const sections = [featuredSection, homeSection, latestSection, mayLikeSection, top3DaysSection, top7DaysSection, top30DaysSection];
 
         for (const section of sections) {
             sectionCallback(section);
@@ -209,11 +216,16 @@ export class HotGirl implements SearchResultsProviding, MangaProviding, ChapterP
             featuredSection.items = this.parser.parseFeaturedSection($home);
             sectionCallback(featuredSection);
 
-            newUpdatedSection.items = this.parser.parseSearchResults($home);
-            sectionCallback(newUpdatedSection);
+            homeSection.items = this.parser.parseSearchResults($home);
+            sectionCallback(homeSection);
 
             mayLikeSection.items = this.parser.parseMayLikeSection($home);
             sectionCallback(mayLikeSection);
+        });
+
+        const fetchLatest = this.DOMHTML(`${cleanBaseUrl}/latest-posts/`).then(($) => {
+            latestSection.items = this.parser.parseSearchResults($);
+            sectionCallback(latestSection);
         });
 
         // Nguồn 2: Top 3 days
@@ -235,7 +247,7 @@ export class HotGirl implements SearchResultsProviding, MangaProviding, ChapterP
         });
 
         // Đợi tất cả hoàn thành để kết thúc hàm
-        await Promise.allSettled([fetchHome, fetchTop3Days, fetchTop7Days, fetchTop30Days]);
+        await Promise.allSettled([fetchHome, fetchLatest, fetchTop3Days, fetchTop7Days, fetchTop30Days]);
     }
 
     private async fetchMangaPageCached(realMangaId: string): Promise<CheerioAPI> {
@@ -360,8 +372,12 @@ export class HotGirl implements SearchResultsProviding, MangaProviding, ChapterP
         const baseUrl = await this.getBaseUrl();
 
         const sectionConfig: Record<string, { getUrl: (p: number) => string; parse: ($: CheerioAPI) => PartialSourceManga[] }> = {
-            new_updated: {
+            home: {
                 getUrl: (p) => (p === 1 ? baseUrl : `${baseUrl.replace(/\/$/, '')}/page/${p}/`),
+                parse: ($) => this.parser.parseSearchResults($),
+            },
+            latest: {
+                getUrl: (p) => (p === 1 ? `${baseUrl.replace(/\/$/, '')}/latest-posts/` : `${baseUrl.replace(/\/$/, '')}/latest-posts/page/${p}/`),
                 parse: ($) => this.parser.parseSearchResults($),
             },
             top_3: {
