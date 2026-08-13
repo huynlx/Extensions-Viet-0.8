@@ -4,6 +4,7 @@ import {
     ChapterDetails,
     ChapterProviding,
     ContentRating,
+    DUISection,
     HomePageSectionsProviding,
     HomeSection,
     HomeSectionType,
@@ -20,6 +21,7 @@ import {
 } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
 import { isLastPageAllTime, isLastPageSearch, VinaHentaiParser } from './VinaHentaiParser';
+import { domainSettings, getDomain, resetSettings } from './VinaHentaiSetting';
 
 const DEFAULT_DOMAIN = 'https://vinahentai.blog';
 
@@ -38,7 +40,7 @@ export const VinaHentaiInfo: SourceInfo = {
             type: BadgeColor.GREEN,
         },
     ],
-    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS,
+    intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED | SourceIntents.SETTINGS_UI,
 };
 
 interface CacheItem<T> {
@@ -58,8 +60,10 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
 
     constructor(private cheerio: CheerioAPI) {}
 
+    // Lấy domain động từ setting và chuẩn hóa bỏ dấu '/' ở cuối
     private async getBaseUrl(): Promise<string> {
-        return DEFAULT_DOMAIN.replace(/\/+$/, '');
+        const domain = await getDomain(this.stateManager);
+        return domain.replace(/\/+$/, '');
     }
 
     readonly requestManager = App.createRequestManager({
@@ -382,6 +386,15 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         return App.createPagedResults({
             results: mangas,
             metadata: !islastPage ? { page: page + 1 } : undefined,
+        });
+    }
+
+    async getSourceMenu(): Promise<DUISection> {
+        return App.createDUISection({
+            id: 'main',
+            header: 'Cài đặt Nguồn Truyện',
+            rows: async () => [domainSettings(this.stateManager), resetSettings(this.stateManager)],
+            isHidden: false,
         });
     }
 }
