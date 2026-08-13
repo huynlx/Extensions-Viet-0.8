@@ -39,6 +39,14 @@ export const ViHentaiInfo: SourceInfo = {
             text: 'Vietnamese',
             type: BadgeColor.GREEN,
         },
+        {
+            text: '18+',
+            type: BadgeColor.RED,
+        },
+        {
+            text: 'Hentai',
+            type: BadgeColor.RED,
+        },
     ],
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.SETTINGS_UI | SourceIntents.CLOUDFLARE_BYPASS_REQUIRED,
 };
