@@ -11,7 +11,7 @@
     "bundle": "node scripts/update-base-url.js && npx paperback bundle",
     "serve": "node scripts/update-base-url.js && npx paperback serve",
     "test": "npx paperback test",
-    "predeploy": "GH_PAGES=true node scripts/update-base-url.js && npx paperback bundle",
+    "predeploy": "node -e \"process.env.GH_PAGES='true'; require('./scripts/update-base-url.js')\" && npx paperback bundle",
     "deploy": "gh-pages -d bundles"
   },
   "devDependencies": {
