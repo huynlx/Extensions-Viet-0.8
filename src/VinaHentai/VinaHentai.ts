@@ -389,6 +389,26 @@ export class VinaHentai implements SearchResultsProviding, MangaProviding, Chapt
         });
     }
 
+    async CloudFlareError(status: number): Promise<void> {
+        if (status === 503 || status === 403) {
+            const baseUrl = await this.getBaseUrl();
+            throw new Error(`CLOUDFLARE BYPASS ERROR:\nPlease go to home page ${VinaHentai.name} source (${baseUrl}) and press the cloud icon.`);
+        }
+    }
+
+    async getCloudflareBypassRequestAsync(): Promise<Request> {
+        const baseUrl = await this.getBaseUrl();
+        return App.createRequest({
+            url: `${baseUrl}/`,
+            method: 'GET',
+            headers: {
+                referer: `${baseUrl}/`,
+                origin: `${baseUrl}/`,
+                'user-agent': await this.requestManager.getDefaultUserAgent(),
+            },
+        });
+    }
+
     async getSourceMenu(): Promise<DUISection> {
         return App.createDUISection({
             id: 'main',
