@@ -257,7 +257,7 @@ export class Parser {
         }
 
         // 5. Mô tả & Thống kê
-        const rawDesc = $('h3:contains("Mô tả")').next('div').find('p').text().trim();
+        const rawDesc = $('h2:contains("Mô tả")').next('div').find('p').text().trim();
 
         const views = $('span:contains("Lượt xem")').prev('span').text().trim();
         const likes = $('span:contains("Lượt thích")').prev('span').text().trim();
