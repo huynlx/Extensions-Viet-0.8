@@ -291,7 +291,7 @@ export class NetTruyen implements SearchResultsProviding, MangaProviding, Chapte
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const cacheKey = `chapter-details-${chapterId}`;
+        const cacheKey = `chapter-details-${mangaId}-${chapterId}`;
         const now = Date.now();
         const cached = this.cache.get(cacheKey);
 
