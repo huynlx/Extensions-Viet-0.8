@@ -283,7 +283,7 @@ export class Parser {
 
         // 3. Author / Artist (Chuẩn hóa tên nguồn/tác giả hiển thị đẹp hơn)
         const rawAuthor = $('.post-meta .author, .post-author a, .source-item').first().text().trim();
-        const author = rawAuthor ? decodeHTML(rawAuthor).replace(/\s+/g, ' ').trim() : 'Misskon';
+        const author = rawAuthor ? decodeHTML(rawAuthor).replace(/\s+/g, ' ').trim() : 'ADMIN';
 
         // 4. Tags & Labels
         const arrayTags: Tag[] = [];
@@ -315,7 +315,7 @@ export class Parser {
 
         const dateText = $('.post-info .thetime, .date.meta-item').first().text().trim();
         if (dateText) {
-            descParts.push(`📅 Ngày đăng: ${dateText}`);
+            descParts.push(`${dateText}`);
         }
 
         // Lấy thêm nội dung tóm tắt ngắn từ bài viết nếu có
