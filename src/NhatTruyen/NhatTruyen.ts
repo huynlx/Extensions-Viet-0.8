@@ -26,7 +26,7 @@ import { domainSettings, getDomain, resetSettings } from './NhatTruyenSetting';
 const DOMAIN = 'https://nhattruyenqq.com/';
 
 export const NhatTruyenInfo: SourceInfo = {
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'NhatTruyen',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
