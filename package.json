@@ -5,7 +5,7 @@
   "description": "Vietnamese source for Paperback 0.8",
   "license": "MIT",
   "private": true,
-  "baseURL": "http://192.168.1.3:8080/",
+  "baseURL": "https://huynlx.github.io/Extensions-Viet-0.8/",
   "scripts": {
     "base-url": "node scripts/update-base-url.js",
     "bundle": "node scripts/update-base-url.js && npx paperback bundle",
