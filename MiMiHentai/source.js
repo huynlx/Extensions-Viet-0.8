@@ -1287,9 +1287,9 @@ var _Sources = (() => {
       }
       for (const item of json.items) {
         const mangaId = item.id ? String(item.id) : "";
-        const title = item.title?.trim() || "";
+        const title = decodeHTML(item.title?.trim() || "");
         const image = item.cover_url || "";
-        const subtitle = item.chapter_count !== void 0 ? `${item.chapter_count} chap` : void 0;
+        const subtitle = item.chapter_count !== void 0 ? decodeHTML(`${item.chapter_count} chap`) : void 0;
         if (mangaId && title) {
           mangaList.push(
             App.createPartialSourceManga({
@@ -1310,9 +1310,9 @@ var _Sources = (() => {
       }
       for (const item of json.items) {
         const mangaId = item.id ? String(item.id) : "";
-        const title = item.title?.trim() || "";
+        const title = decodeHTML(item.title?.trim() || "");
         const image = item.cover_url || "";
-        const subtitle = item.chapter_count !== void 0 ? `${item.chapter_count} chap` : void 0;
+        const subtitle = item.chapter_count !== void 0 ? decodeHTML(`${item.chapter_count} chap`) : void 0;
         if (mangaId && title) {
           mangaList.push(
             App.createPartialSourceManga({
@@ -1333,9 +1333,9 @@ var _Sources = (() => {
       }
       for (const item of json.items) {
         const mangaId = item.id ? String(item.id) : "";
-        const title = item.title?.trim() || "";
+        const title = decodeHTML(item.title?.trim() || "");
         const image = item.cover_url || "";
-        const subtitle = item.chapter_count !== void 0 ? `${item.chapter_count} chap` : void 0;
+        const subtitle = item.chapter_count !== void 0 ? decodeHTML(`${item.chapter_count} chap`) : void 0;
         if (mangaId && title) {
           mangaList.push(
             App.createPartialSourceManga({
@@ -1356,9 +1356,9 @@ var _Sources = (() => {
       }
       for (const item of json.items) {
         const mangaId = item.id ? String(item.id) : "";
-        const title = item.title?.trim() || "";
+        const title = decodeHTML(item.title?.trim() || "");
         const image = item.cover_url || "";
-        const subtitle = item.chapter_count !== void 0 ? `${item.chapter_count} chap` : void 0;
+        const subtitle = item.chapter_count !== void 0 ? decodeHTML(`${item.chapter_count} chap`) : void 0;
         if (mangaId && title) {
           mangaList.push(
             App.createPartialSourceManga({
@@ -1380,18 +1380,18 @@ var _Sources = (() => {
       }
       for (const item of items) {
         const mangaId = item.id ? String(item.id) : "";
-        const title = item.title || "";
+        const title = decodeHTML(item.title || "");
         const image = item.cover_url || "";
-        const author = Array.isArray(item.authors) && item.authors.length > 0 ? item.authors[0].name : void 0;
+        const author = Array.isArray(item.authors) && item.authors.length > 0 ? decodeHTML(item.authors[0].name) : void 0;
         const chapterText = item.chapter_count ? `${item.chapter_count} ch\u01B0\u01A1ng` : void 0;
-        const subtitle = author || chapterText;
+        const subtitle = decodeHTML(author || chapterText || "");
         if (mangaId && title) {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title: decodeHTML(title),
+              title,
               image,
-              subtitle
+              subtitle: subtitle ? subtitle : void 0
             })
           );
         }
@@ -1406,9 +1406,9 @@ var _Sources = (() => {
       }
       for (const item of json.items) {
         const mangaId = item.id ? String(item.id) : "";
-        const title = item.title?.trim() || "";
+        const title = decodeHTML(item.title?.trim() || "");
         const image = item.cover_url || "";
-        const subtitle = item.chapter_count !== void 0 ? `${item.chapter_count} chap` : void 0;
+        const subtitle = item.chapter_count !== void 0 ? decodeHTML(`${item.chapter_count} chap`) : void 0;
         if (mangaId) {
           mangaList.push(
             App.createPartialSourceManga({
@@ -1424,19 +1424,19 @@ var _Sources = (() => {
     }
     // Parse thông tin chi tiết truyện
     parseMangaDetails($, mangaId) {
-      const title = $("h1").first().text().trim();
+      const title = decodeHTML($("h1").first().text().trim());
       let image = $('img[src*="cover-images"]').first().attr("src") || $('img[src*="moe-cdn.net"]').first().attr("src") || "";
       if (image.startsWith("//")) {
         image = `https:${image}`;
       }
-      let author = "\u0110ang c\u1EADp nh\u1EADt";
+      let author = decodeHTML("\u0110ang c\u1EADp nh\u1EADt");
       $("div").filter((_, el) => $(el).prev("h3").text().includes("T\xE1c gi\u1EA3") || $(el).find('a[href*="/authors/"]').length > 0).find('a[href*="/authors/"]').first().each((_, el) => {
         const name = $(el).find(".text-white").text().trim() || $(el).text().trim();
-        if (name) author = name;
+        if (name) author = decodeHTML(name);
       });
-      if (author === "\u0110ang c\u1EADp nh\u1EADt") {
+      if (author === decodeHTML("\u0110ang c\u1EADp nh\u1EADt")) {
         const headerAuthor = $('a[href*="/authors/"]').first().text().trim();
-        if (headerAuthor) author = headerAuthor;
+        if (headerAuthor) author = decodeHTML(headerAuthor);
       }
       const tagSections = [];
       const extractTagsFromUrl = (urlPattern, prefix = "") => {
@@ -1445,7 +1445,7 @@ var _Sources = (() => {
           const $tag = $(element);
           const href = $tag.attr("href") || "";
           const rawId = href.split(urlPattern).pop()?.split("/")[0]?.split("?")[0] ?? "";
-          const label = $tag.find("div").first().text().trim() || $tag.text().trim();
+          const label = decodeHTML($tag.find("div").first().text().trim() || $tag.text().trim());
           if (rawId && label) {
             tags.push(App.createTag({ id: `${prefix}${rawId}`, label }));
           }
@@ -1454,15 +1454,15 @@ var _Sources = (() => {
       };
       const genreTags = extractTagsFromUrl("/genres/", "genre-");
       if (genreTags.length > 0) {
-        tagSections.push(App.createTagSection({ id: "genres", label: "Th\u1EC3 lo\u1EA1i", tags: genreTags }));
+        tagSections.push(App.createTagSection({ id: "genres", label: decodeHTML("Th\u1EC3 lo\u1EA1i"), tags: genreTags }));
       }
       const parodyTags = extractTagsFromUrl("/parodies/", "parody-");
       if (parodyTags.length > 0) {
-        tagSections.push(App.createTagSection({ id: "parodies", label: "Parody", tags: parodyTags }));
+        tagSections.push(App.createTagSection({ id: "parodies", label: decodeHTML("Parody"), tags: parodyTags }));
       }
       const characterTags = extractTagsFromUrl("/characters/", "character-");
       if (characterTags.length > 0) {
-        tagSections.push(App.createTagSection({ id: "characters", label: "Nh\xE2n v\u1EADt", tags: characterTags }));
+        tagSections.push(App.createTagSection({ id: "characters", label: decodeHTML("Nh\xE2n v\u1EADt"), tags: characterTags }));
       }
       const rawDesc = $('h3:contains("M\xF4 t\u1EA3")').next("div").find("p").text().trim();
       const views = $('span:contains("L\u01B0\u1EE3t xem")').prev("span").text().trim();
@@ -1474,16 +1474,16 @@ var _Sources = (() => {
 \u{1F441} L\u01B0\u1EE3t xem: ${views}`);
       if (likes) descParts.push(`\u2764\uFE0F L\u01B0\u1EE3t th\xEDch: ${likes}`);
       if (follows) descParts.push(`\u{1F4CC} Theo d\xF5i: ${follows}`);
-      const description = descParts.join("\n");
+      const description = decodeHTML(descParts.join("\n"));
       return App.createSourceManga({
         id: mangaId,
         mangaInfo: App.createMangaInfo({
-          titles: [decodeHTML(title)],
+          titles: [title],
           image,
           status: "Ongoing",
           author,
           artist: author,
-          desc: decodeHTML(description),
+          desc: description,
           tags: tagSections,
           hentai: true
         })
@@ -1509,6 +1509,7 @@ var _Sources = (() => {
         if (!chapterName) {
           chapterName = $a.find("span.break-all, span.text-zinc-400").first().text().trim() || $a.text().trim();
         }
+        chapterName = decodeHTML(chapterName);
         const chapNum = totalChapters - index;
         let timeStr = $a.find("span.text-xs span.flex").clone().children().remove().end().text().trim();
         timeStr = timeStr.replace(/đã đọc/gi, "").replace(/\s+/g, " ").trim();
@@ -1544,11 +1545,11 @@ var _Sources = (() => {
     // Parse danh sách thể loại (Tags)
     parseTags($genres, $home) {
       const sortTags = [
-        App.createTag({ id: "sort-updated_at", label: "M\u1EDBi" }),
-        App.createTag({ id: "sort-title", label: "A-Z" }),
-        App.createTag({ id: "sort-views", label: "Xem nhi\u1EC1u" }),
-        App.createTag({ id: "sort-follows", label: "Theo d\xF5i" }),
-        App.createTag({ id: "sort-likes", label: "Th\xEDch" })
+        App.createTag({ id: "sort-updated_at", label: decodeHTML("M\u1EDBi") }),
+        App.createTag({ id: "sort-title", label: decodeHTML("A-Z") }),
+        App.createTag({ id: "sort-views", label: decodeHTML("Xem nhi\u1EC1u") }),
+        App.createTag({ id: "sort-follows", label: decodeHTML("Theo d\xF5i") }),
+        App.createTag({ id: "sort-likes", label: decodeHTML("Th\xEDch") })
       ];
       const genreTags = [];
       const albumTags = [];
@@ -1593,11 +1594,11 @@ var _Sources = (() => {
       }
       const sections = [];
       if (albumTags.length > 0) {
-        sections.push(App.createTagSection({ id: "albums", label: "Album n\u1ED5i b\u1EADt", tags: albumTags }));
+        sections.push(App.createTagSection({ id: "albums", label: decodeHTML("Album n\u1ED5i b\u1EADt"), tags: albumTags }));
       }
-      sections.push(App.createTagSection({ id: "sorts", label: "S\u1EAFp x\u1EBFp", tags: sortTags }));
+      sections.push(App.createTagSection({ id: "sorts", label: decodeHTML("S\u1EAFp x\u1EBFp"), tags: sortTags }));
       if (genreTags.length > 0) {
-        sections.push(App.createTagSection({ id: "genres", label: "Th\u1EC3 lo\u1EA1i", tags: genreTags }));
+        sections.push(App.createTagSection({ id: "genres", label: decodeHTML("Th\u1EC3 lo\u1EA1i"), tags: genreTags }));
       }
       return sections;
     }

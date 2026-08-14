@@ -1253,7 +1253,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
           addedMangaIds.add(mangaId);
@@ -1287,7 +1287,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle: lastChapter
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1317,7 +1317,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
           addedMangaIds.add(mangaId);
@@ -1348,7 +1348,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
           addedMangaIds.add(mangaId);
@@ -1383,7 +1383,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle: lastChapter
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1416,7 +1416,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle: lastChapter
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1453,7 +1453,7 @@ var _Sources = (() => {
         const segments = href.replace(/\/$/, "").split("/");
         const id = segments.pop() ?? "";
         if (id && label) {
-          arrayTags.push(App.createTag({ id, label }));
+          arrayTags.push(App.createTag({ id, label: decodeHTML(label) }));
         }
       });
       const altName = getSummaryContent("T\xEAn kh\xE1c");
@@ -1482,9 +1482,9 @@ var _Sources = (() => {
           titles: [decodeHTML(title)],
           image,
           status,
-          author,
-          artist: author,
-          desc: description,
+          author: decodeHTML(author),
+          artist: decodeHTML(author),
+          desc: decodeHTML(description),
           tags: [App.createTagSection({ id: "0", label: "Th\u1EC3 lo\u1EA1i", tags: arrayTags })],
           hentai: true
         })
@@ -1520,11 +1520,11 @@ var _Sources = (() => {
           chapters.push(
             App.createChapter({
               id: chapterId,
-              name: chapterName,
+              name: decodeHTML(chapterName),
               chapNum: index + 1,
               // Đảm bảo số thứ tự tăng dần chuẩn xác từ 1 đến hết
               langCode: "\u{1F1FB}\u{1F1F3}",
-              group: timeStr,
+              group: timeStr ? decodeHTML(timeStr) : "",
               time
             })
           );
@@ -1546,7 +1546,7 @@ var _Sources = (() => {
           genreTags.push(
             App.createTag({
               id: slug,
-              label
+              label: decodeHTML(label)
             })
           );
         }

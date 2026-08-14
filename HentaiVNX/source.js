@@ -1235,7 +1235,8 @@ var _Sources = (() => {
       $(".items-slide .item").each((_, element) => {
         const $item = $(element);
         const $titleLink = $item.find(".slide-caption h3 a").first();
-        const title = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const rawTitle = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const title = decodeHTML(rawTitle);
         const href = $titleLink.attr("href") || $item.find("a").first().attr("href") || "";
         const mangaId = href.split("/truyen-hentai/").pop()?.split("/")[0]?.split("?")[0] ?? "";
         const $img = $item.find("img").first();
@@ -1243,14 +1244,15 @@ var _Sources = (() => {
         if (image.startsWith("//")) {
           image = `https:${image}`;
         }
-        const lastChapter = $item.find(".slide-caption a").last().text().trim();
+        const rawLastChapter = $item.find(".slide-caption a").last().text().trim();
+        const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : void 0;
         if (mangaId && title && !mangaId.includes("javascript")) {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title: decodeHTML(title),
+              title,
               image,
-              subtitle: lastChapter || void 0
+              subtitle
             })
           );
         }
@@ -1262,7 +1264,8 @@ var _Sources = (() => {
       $("#ctl00_divCenter .items .row .item").each((_, element) => {
         const $item = $(element);
         const $titleLink = $item.find("figcaption h3 a").first();
-        const title = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const rawTitle = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const title = decodeHTML(rawTitle);
         const href = $titleLink.attr("href") || $item.find("a").first().attr("href") || "";
         const mangaId = href.split("/truyen-hentai/").pop()?.split("/")[0]?.split("?")[0] ?? "";
         const $img = $item.find(".image img").first();
@@ -1270,14 +1273,15 @@ var _Sources = (() => {
         if (image.startsWith("//")) {
           image = `https:${image}`;
         }
-        const lastChapter = $item.find("ul li.chapter:first-child a").text().trim() || $item.find(".comic-item .chapter:first-child a").text().trim();
+        const rawLastChapter = $item.find("ul li.chapter:first-child a").text().trim() || $item.find(".comic-item .chapter:first-child a").text().trim();
+        const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : void 0;
         if (mangaId && title && !mangaId.includes("javascript")) {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title: decodeHTML(title),
+              title,
               image,
-              subtitle: lastChapter || void 0
+              subtitle
             })
           );
         }
@@ -1289,7 +1293,8 @@ var _Sources = (() => {
       $("#ctl00_divCenter .items .row .item").each((_, element) => {
         const $item = $(element);
         const $titleLink = $item.find("figcaption h3 a").first();
-        const title = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const rawTitle = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const title = decodeHTML(rawTitle);
         const href = $titleLink.attr("href") || $item.find("a").first().attr("href") || "";
         const mangaId = href.split("/truyen-hentai/").pop()?.split("/")[0]?.split("?")[0] ?? "";
         const $img = $item.find(".image img").first();
@@ -1297,14 +1302,15 @@ var _Sources = (() => {
         if (image.startsWith("//")) {
           image = `https:${image}`;
         }
-        const lastChapter = $item.find(".comic-item .chapter").first().find("a").text().trim();
+        const rawLastChapter = $item.find(".comic-item .chapter").first().find("a").text().trim();
+        const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : void 0;
         if (mangaId && title && !mangaId.includes("javascript")) {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title: decodeHTML(title),
+              title,
               image,
-              subtitle: lastChapter || void 0
+              subtitle
             })
           );
         }
@@ -1317,7 +1323,8 @@ var _Sources = (() => {
       $("#ctl00_divCenter .items .row .item").each((_, element) => {
         const $item = $(element);
         const $titleLink = $item.find("figcaption h3 a").first();
-        const title = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const rawTitle = $titleLink.attr("title")?.trim() || $titleLink.text().trim();
+        const title = decodeHTML(rawTitle);
         const href = $titleLink.attr("href") || $item.find("a").first().attr("href") || "";
         const mangaId = href.split("/truyen-hentai/").pop()?.split("/")[0]?.split("?")[0] ?? "";
         const $img = $item.find(".image img").first();
@@ -1325,14 +1332,15 @@ var _Sources = (() => {
         if (image.startsWith("//")) {
           image = `https:${image}`;
         }
-        const lastChapter = $item.find(".comic-item .chapter").first().find("a").text().trim();
+        const rawLastChapter = $item.find(".comic-item .chapter").first().find("a").text().trim();
+        const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : void 0;
         if (mangaId && title && !mangaId.includes("javascript")) {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title: decodeHTML(title),
+              title,
               image,
-              subtitle: lastChapter || void 0
+              subtitle
             })
           );
         }
@@ -1341,35 +1349,47 @@ var _Sources = (() => {
     }
     // Parse thông tin chi tiết truyện
     parseMangaDetails($, mangaId) {
-      const title = $("h1.title-detail").text().trim() || $(".title-detail").text().trim();
+      const rawTitle = $("h1.title-detail").text().trim() || $(".title-detail").text().trim();
+      const title = decodeHTML(rawTitle);
       let image = $(".detail-info .col-image img").attr("src") || $(".detail-info img").attr("data-original") || "";
       if (image.startsWith("//")) image = `https:${image}`;
       const authorStr = $(".list-info .author .col-xs-8").text().trim();
-      const author = authorStr && authorStr !== "\u0110ang c\u1EADp nh\u1EADt" ? authorStr : "\u0110ang c\u1EADp nh\u1EADt";
+      const rawAuthor = authorStr && authorStr !== "\u0110ang c\u1EADp nh\u1EADt" ? authorStr : "\u0110ang c\u1EADp nh\u1EADt";
+      const author = decodeHTML(rawAuthor);
       const statusStr = $(".list-info .status .col-xs-8").text().trim();
       const status = statusStr.includes("Ho\xE0n th\xE0nh") ? "Completed" : "Ongoing";
       const arrayTags = [];
       $(".list-info .kind .col-xs-8 a").each((_, element) => {
-        const label = $(element).text().trim();
+        const rawLabel = $(element).text().trim();
+        const label = decodeHTML(rawLabel);
         const href = $(element).attr("href") || "";
         const id = href.split("/tim-truyen/").pop()?.split("/")[0]?.split("?")[0] ?? "";
         if (id && label) {
           arrayTags.push(App.createTag({ id, label }));
         }
       });
+      const rawAltName = $(".list-info .other-name .col-xs-8").text().trim();
+      const altName = decodeHTML(rawAltName);
       const views = $(".list-info .row:has(.fa-eye) .col-xs-8").text().trim();
       const rating = $(".mrt5.mrb10 span:has(span)").text().replace(/\s+/g, " ").trim();
-      const description = `L\u01B0\u1EE3t xem: ${views}
-${rating}`;
+      const rawMainDesc = $(".detail-content .content").text().trim();
+      const mainDesc = decodeHTML(rawMainDesc);
+      const descParts = [];
+      if (altName && altName !== "\u0110ang c\u1EADp nh\u1EADt") descParts.push(`T\xEAn kh\xE1c: ${altName}`);
+      if (views) descParts.push(`\u{1F441} L\u01B0\u1EE3t xem: ${views}`);
+      if (rating) descParts.push(`\u2B50 \u0110\xE1nh gi\xE1: ${rating}`);
+      if (mainDesc) descParts.push(`
+${mainDesc}`);
+      const description = descParts.join("\n");
       return App.createSourceManga({
         id: mangaId,
         mangaInfo: App.createMangaInfo({
-          titles: [decodeHTML(title)],
+          titles: [title],
           image,
           status,
           author,
           artist: author,
-          desc: decodeHTML(description),
+          desc: description,
           tags: [App.createTagSection({ id: "0", label: "Th\u1EC3 lo\u1EA1i", tags: arrayTags })],
           hentai: true
         })
@@ -1401,7 +1421,8 @@ ${rating}`;
       $("#nt_listchapter ul li.row").each((_, element) => {
         const $row = $(element);
         const $a = $row.find(".chapter a");
-        const chapterName = $a.text().trim();
+        const rawChapterName = $a.text().trim();
+        const chapterName = decodeHTML(rawChapterName);
         const dataId = $a.attr("data-id") || "";
         const href = $a.attr("href") || "";
         const chapterId = href.split("/truyen-hentai/").pop() || dataId;
@@ -1445,7 +1466,8 @@ ${rating}`;
       const $genresContainer = $('label.col-sm-2.control-label:contains("Th\u1EC3 lo\u1EA1i")').next(".col-sm-10");
       $genresContainer.find(".genre-item").each((_, element) => {
         const $item = $(element);
-        const label = decodeHTML($item.attr("title")?.trim() || $item.text().trim());
+        const rawLabel = $item.attr("title")?.trim() || $item.text().trim();
+        const label = decodeHTML(rawLabel);
         const dataId = $item.find("span").attr("data-id")?.trim();
         if (dataId && label) {
           genreTags.push(App.createTag({ id: `genres=${dataId}`, label }));

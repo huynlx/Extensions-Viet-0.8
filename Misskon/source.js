@@ -1235,7 +1235,7 @@ var _Sources = (() => {
       $(".post-listing article.item-list").each((_, element) => {
         const $item = $(element);
         const $titleLink = $item.find(".post-box-title a").first();
-        const title = $titleLink.text().trim();
+        const title = decodeHTML($titleLink.text().trim());
         const href = $titleLink.attr("href") || $item.find(".post-thumbnail a").attr("href") || "";
         let mangaId = "";
         try {
@@ -1253,7 +1253,7 @@ var _Sources = (() => {
           image = `https:${image}`;
         }
         const subtitleMatch = title.match(/\(([^)]+photos[^)]*)\)/i);
-        const subtitle = subtitleMatch?.[1]?.trim();
+        const subtitle = subtitleMatch?.[1]?.trim() ? decodeHTML(subtitleMatch[1].trim()) : void 0;
         const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
         if (mangaId && title) {
           mangaList.push(
@@ -1273,7 +1273,7 @@ var _Sources = (() => {
       $(".post-listing article.item-list").each((_, element) => {
         const $item = $(element);
         const $titleLink = $item.find(".post-box-title a").first();
-        const title = $titleLink.text().trim();
+        const title = decodeHTML($titleLink.text().trim());
         const href = $titleLink.attr("href") || $item.find(".post-thumbnail a").attr("href") || "";
         let mangaId = "";
         try {
@@ -1291,7 +1291,7 @@ var _Sources = (() => {
           image = `https:${image}`;
         }
         const subtitleMatch = title.match(/\(([^)]*(?:photos|pictures|videos)[^)]*)\)/i);
-        const subtitle = subtitleMatch?.[1]?.trim();
+        const subtitle = subtitleMatch?.[1]?.trim() ? decodeHTML(subtitleMatch[1].trim()) : void 0;
         const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
         if (mangaId && title) {
           mangaList.push(
@@ -1313,7 +1313,7 @@ var _Sources = (() => {
         const $thumbLink = $thumb.find("a").first();
         const $h3 = $thumb.next("h3");
         const $titleLink = $h3.find("a").first();
-        const title = $titleLink.text().trim() || $thumbLink.attr("title")?.trim() || "";
+        const title = decodeHTML($titleLink.text().trim() || $thumbLink.attr("title")?.trim() || "");
         const href = $titleLink.attr("href") || $thumbLink.attr("href") || "";
         let mangaId = "";
         try {
@@ -1331,7 +1331,7 @@ var _Sources = (() => {
           image = `https:${image}`;
         }
         const subtitleMatch = title.match(/\(([^)]*(?:photos|anh|pictures|videos)[^)]*)\)/i);
-        const subtitle = subtitleMatch?.[1]?.trim();
+        const subtitle = subtitleMatch?.[1]?.trim() ? decodeHTML(subtitleMatch[1].trim()) : void 0;
         const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
         if (mangaId && title) {
           mangaList.push(
@@ -1352,7 +1352,7 @@ var _Sources = (() => {
       $(".post-listing article.item-list").each((_, element) => {
         const $item = $(element);
         const $titleLink = $item.find(".post-box-title a").first();
-        const title = $titleLink.text().trim();
+        const title = decodeHTML($titleLink.text().trim());
         const href = $titleLink.attr("href") || $item.find(".post-thumbnail a").attr("href") || "";
         let mangaId = "";
         try {
@@ -1370,7 +1370,7 @@ var _Sources = (() => {
           image = `https:${image}`;
         }
         const subtitleMatch = title.match(/\(([^)]*(?:photos|pictures|videos)[^)]*)\)/i);
-        const subtitle = subtitleMatch?.[1]?.trim();
+        const subtitle = subtitleMatch?.[1]?.trim() ? decodeHTML(subtitleMatch[1].trim()) : void 0;
         const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
         if (mangaId && title) {
           mangaList.push(
@@ -1388,7 +1388,7 @@ var _Sources = (() => {
     // Parse thông tin chi tiết truyện
     parseMangaDetails($, compositeId) {
       const rawTitle = $("h1.post-title, .entry-title, h1").first().text().trim();
-      const title = rawTitle.replace(/\s*-\s*\(\s*Page\s*\d+\s*\/\s*\d+\s*\)$/i, "").trim();
+      const title = decodeHTML(rawTitle.replace(/\s*-\s*\(\s*Page\s*\d+\s*\/\s*\d+\s*\)$/i, "").trim());
       const viewsText = $(".post-meta .post-views").text().trim();
       const viewsMatch = viewsText.match(/([\d,.]+)/);
       const views = viewsMatch?.[1] ? parseInt(viewsMatch[1].replace(/[,.]/g, ""), 10) : void 0;
@@ -1398,10 +1398,11 @@ var _Sources = (() => {
       if (albumMatch?.[1]) {
         author = albumMatch[1].trim();
       }
+      const decodedAuthor = decodeHTML(author);
       const arrayTags = [];
       $('.post-tags a, .box.info a[href*="/tag/"]').each((_, element) => {
         const $tag = $(element);
-        const label = $tag.text().trim();
+        const label = decodeHTML($tag.text().trim());
         const href = $tag.attr("href") || "";
         const id = href.replace(/\/$/, "").split("/tag/")[1]?.trim() || "";
         if (id && label && !arrayTags.some((t) => t.id === id)) {
@@ -1418,7 +1419,7 @@ var _Sources = (() => {
       if (cleanInfoText) {
         descParts.push(cleanInfoText);
       }
-      const description = descParts.length > 0 ? descParts.join("\n") : infoText.trim();
+      const description = decodeHTML(descParts.length > 0 ? descParts.join("\n") : infoText.trim());
       const [realMangaId, encodedCover] = compositeId.split("|");
       let homeCoverUrl = encodedCover ? decodeURIComponent(encodedCover) : "";
       if (!homeCoverUrl) {
@@ -1434,18 +1435,17 @@ var _Sources = (() => {
       return App.createSourceManga({
         id: compositeId,
         mangaInfo: App.createMangaInfo({
-          titles: [decodeHTML(title)],
+          titles: [title],
           image: homeCoverUrl,
           status: "Completed",
-          author,
-          artist: author,
-          desc: decodeHTML(description),
-          tags: [App.createTagSection({ id: "0", label: "Th\u1EC3 lo\u1EA1i", tags: arrayTags })],
+          author: decodedAuthor,
+          artist: decodedAuthor,
+          desc: description,
+          tags: [App.createTagSection({ id: "0", label: decodeHTML("Th\u1EC3 lo\u1EA1i"), tags: arrayTags })],
           hentai: true
         })
       });
     }
-    // Helper quy đổi thời gian tương đối (VD: "58 phút trước", "26 ngày trước") thành Date
     parseDate(dateStr) {
       if (!dateStr) return /* @__PURE__ */ new Date();
       const [dayStr, monthStr, yearStr] = dateStr.split("/");
@@ -1457,7 +1457,6 @@ var _Sources = (() => {
       }
       return /* @__PURE__ */ new Date();
     }
-    // Parse trực tiếp mảng JSON thành danh sách Chapter
     parseChapterList($) {
       const chapters = [];
       const seenChapNums = /* @__PURE__ */ new Set();
@@ -1480,7 +1479,7 @@ var _Sources = (() => {
           chapters.push(
             App.createChapter({
               id: chapterId,
-              name: `Trang ${chapNum}`,
+              name: decodeHTML(`Trang ${chapNum}`),
               chapNum,
               time: /* @__PURE__ */ new Date()
             })
@@ -1491,7 +1490,7 @@ var _Sources = (() => {
         chapters.push(
           App.createChapter({
             id: mainSlug,
-            name: "Trang 1",
+            name: decodeHTML("Trang 1"),
             chapNum: 1,
             time: /* @__PURE__ */ new Date()
           })
@@ -1499,7 +1498,6 @@ var _Sources = (() => {
       }
       return chapters;
     }
-    // Parse danh sách trang ảnh trong chapter
     parseChapterDetails($) {
       const pages = [];
       $(".entry img").each((_, element) => {
@@ -1518,7 +1516,6 @@ var _Sources = (() => {
       });
       return pages;
     }
-    // Parse danh sách thể loại (Tags)
     parseTags($) {
       const sections = [];
       const categoryTitles = ["Chinese", "Korean", "Other"];
@@ -1531,7 +1528,8 @@ var _Sources = (() => {
               const $span = $(spanEl);
               const $a = $span.find("a").first();
               const href = $a.attr("href") || "";
-              const label = $a.find("strong").text().trim() || $a.text().trim();
+              const rawLabel = $a.find("strong").text().trim() || $a.text().trim();
+              const label = decodeHTML(rawLabel);
               const countMatch = $span.text().match(/\((\d+)\)/);
               const countText = countMatch ? ` (${countMatch[1]})` : "";
               let id = "";
@@ -1556,7 +1554,7 @@ var _Sources = (() => {
           sections.push(
             App.createTagSection({
               id: `cat_${index + 1}`,
-              label: catTitle,
+              label: decodeHTML(catTitle),
               tags
             })
           );

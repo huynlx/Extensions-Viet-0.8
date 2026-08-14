@@ -1251,7 +1251,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle: lastChapter || void 0
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1280,7 +1280,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle: lastChapter
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1304,14 +1304,14 @@ var _Sources = (() => {
         const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
         const lastChapter = chapterMatch ? chapterMatch[1] : void 0;
         const viewsText = $item.find(".box-description p").filter((_2, el) => $(el).find("b.info").text().includes("L\u01B0\u1EE3t xem")).text().replace(/Lượt xem:\s*/i, "").trim();
-        const subtitle = viewsText ? `\u{1F441} ${viewsText}` : void 0;
+        const subtitle = viewsText ? `\u{1F441} ${viewsText}` : lastChapter;
         if (mangaId && title && !mangaId.includes("javascript")) {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
         }
@@ -1337,7 +1337,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle: lastChapter
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1362,14 +1362,14 @@ var _Sources = (() => {
         const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
         const lastChapter = chapterMatch ? chapterMatch[1] : void 0;
         const viewsText = $item.find(".box-description p").filter((_2, el) => $(el).find("b.info").text().includes("L\u01B0\u1EE3t xem")).text().replace(/Lượt xem:\s*/i, "").trim();
-        const subtitle = viewsText ? `\u{1F441} ${viewsText}` : void 0;
+        const subtitle = lastChapter;
         if (mangaId && title && !mangaId.includes("javascript")) {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle: lastChapter
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
         }
@@ -1397,7 +1397,7 @@ var _Sources = (() => {
         const href = $(element).attr("href") || "";
         const id = href.split("/the-loai/").pop()?.split("/")[0]?.split("?")[0] ?? "";
         if (id && label) {
-          arrayTags.push(App.createTag({ id, label }));
+          arrayTags.push(App.createTag({ id, label: decodeHTML(label) }));
         }
       });
       const altName = getInfoText("T\xEAn Kh\xE1c");
@@ -1415,15 +1415,15 @@ ${rawDesc}`);
           titles: [decodeHTML(title)],
           image,
           status,
-          author,
-          artist: author,
+          author: decodeHTML(author),
+          artist: decodeHTML(author),
           desc: decodeHTML(description),
           tags: [App.createTagSection({ id: "0", label: "Th\u1EC3 lo\u1EA1i", tags: arrayTags })],
           hentai: true
         })
       });
     }
-    // Helper quy đổi thời gian tương đối (VD: "58 phút trước", "26 ngày trước") thành Date
+    // Helper quy đổi thời gian tương đối thành Date
     parseDate(dateStr) {
       if (!dateStr) return /* @__PURE__ */ new Date();
       const [dayStr, monthStr, yearStr] = dateStr.split("/");
@@ -1453,7 +1453,7 @@ ${rawDesc}`);
           chapters.push(
             App.createChapter({
               id: chapterId,
-              name: chapterName,
+              name: decodeHTML(chapterName),
               chapNum,
               langCode: "\u{1F1FB}\u{1F1F3}",
               group: timeStr,
@@ -1492,8 +1492,7 @@ ${rawDesc}`);
           genreTags.push(
             App.createTag({
               id: slug,
-              // Chỉ lưu slug thuần túy
-              label
+              label: decodeHTML(label)
             })
           );
         }

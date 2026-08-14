@@ -1298,9 +1298,9 @@ var _Sources = (() => {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title,
+              title: decodeHTML(title),
               image,
-              subtitle: lastChapter || void 0
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1329,7 +1329,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image: cover,
-              subtitle
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
           addedMangaIds.add(mangaId);
@@ -1355,9 +1355,9 @@ var _Sources = (() => {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title,
+              title: decodeHTML(title),
               image,
-              subtitle: lastChapter || void 0
+              subtitle: lastChapter ? decodeHTML(lastChapter) : void 0
             })
           );
         }
@@ -1383,9 +1383,9 @@ var _Sources = (() => {
           mangaList.push(
             App.createPartialSourceManga({
               mangaId,
-              title,
+              title: decodeHTML(title),
               image,
-              subtitle
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
         }
@@ -1415,7 +1415,7 @@ var _Sources = (() => {
               mangaId,
               title: decodeHTML(title),
               image,
-              subtitle
+              subtitle: subtitle ? decodeHTML(subtitle) : void 0
             })
           );
           addedMangaIds.add(mangaId);
@@ -1459,7 +1459,7 @@ var _Sources = (() => {
         const href = $(element).attr("href") || "";
         const id = href.split("/genre/").pop()?.split("?")[0] ?? "";
         if (id && label) {
-          arrayTags.push(App.createTag({ id, label }));
+          arrayTags.push(App.createTag({ id, label: decodeHTML(label) }));
         }
       });
       const rawDescription = $(".description-summary .original-content").text().trim();
@@ -1477,8 +1477,8 @@ var _Sources = (() => {
           titles: [decodeHTML(title)],
           image,
           status: "Ongoing",
-          author,
-          artist: author,
+          author: decodeHTML(author),
+          artist: decodeHTML(author),
           desc: decodeHTML(description),
           tags: [App.createTagSection({ id: "0", label: "Th\u1EC3 lo\u1EA1i", tags: arrayTags })],
           hentai: true,
@@ -1486,7 +1486,7 @@ var _Sources = (() => {
         })
       });
     }
-    // Parse trực tiếp mảng JSON thành danh sách Chapter
+    // Parse danh sách Chapter
     parseChapterList($) {
       const chapters = [];
       $(".list-chapter.phihi ul.box-list-chapter li.wp-manga-chapter").each((index, element) => {
@@ -1505,10 +1505,10 @@ var _Sources = (() => {
           chapters.push(
             App.createChapter({
               id: chapterId,
-              name: chapterName,
+              name: decodeHTML(chapterName),
               chapNum,
               langCode: "\u{1F1FB}\u{1F1F3}",
-              group: groupInfo || void 0,
+              group: groupInfo ? decodeHTML(groupInfo) : void 0,
               time
             })
           );
@@ -1535,7 +1535,6 @@ var _Sources = (() => {
     // Parse danh sách thể loại (Tags)
     parseTags($) {
       const genreTags = [];
-      const sortTags = [];
       $("ul.genres-grid a.genre-card").each((_, element) => {
         const $item = $(element);
         const name = $item.find(".name").text().trim();
@@ -1548,7 +1547,7 @@ var _Sources = (() => {
           genreTags.push(
             App.createTag({
               id: slug,
-              label
+              label: decodeHTML(label)
             })
           );
         }
