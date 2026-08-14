@@ -1464,7 +1464,7 @@ var _Sources = (() => {
       if (characterTags.length > 0) {
         tagSections.push(App.createTagSection({ id: "characters", label: decodeHTML("Nh\xE2n v\u1EADt"), tags: characterTags }));
       }
-      const rawDesc = $('h3:contains("M\xF4 t\u1EA3")').next("div").find("p").text().trim();
+      const rawDesc = $('h2:contains("M\xF4 t\u1EA3")').next("div").find("p").text().trim();
       const views = $('span:contains("L\u01B0\u1EE3t xem")').prev("span").text().trim();
       const likes = $('span:contains("L\u01B0\u1EE3t th\xEDch")').prev("span").text().trim();
       const follows = $('span:contains("Theo d\xF5i")').prev("span").text().trim();
