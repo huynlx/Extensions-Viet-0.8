@@ -20,7 +20,7 @@ export class Parser {
             // 3. Image URL (Trích xuất từ style background-image và fallback '')
             const bgStyle = $item.find('.featured-cover').attr('style') || '';
             const match = bgStyle.match(/url\(['"]?(.*?)['"]?\)/);
-            let image = match?.[1] || ''; // Dùng optional chaining & fallback ''
+            let image = match?.[1] || '';
 
             if (image.startsWith('//')) {
                 image = `https:${image}`;
@@ -35,7 +35,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -66,7 +66,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
+            // 4. Chapter/Subtitle
             const fullTitleText = $item.find('.box-description p').first().text().trim();
             const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
             const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
@@ -77,7 +77,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -108,7 +108,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
+            // 4. Chapter/Subtitle
             const fullTitleText = $item.find('.box-description p').first().text().trim();
             const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
             const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
@@ -121,7 +121,7 @@ export class Parser {
                 .replace(/Lượt xem:\s*/i, '')
                 .trim();
 
-            const subtitle = viewsText ? `👁 ${viewsText}` : undefined;
+            const subtitle = viewsText ? `👁 ${viewsText}` : lastChapter;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
@@ -129,7 +129,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
             }
@@ -159,7 +159,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter từ .meta (VD: "Chap 2")
+            // 4. Chapter từ .meta
             const lastChapter = $item.find('.meta').text().trim() || undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
@@ -168,7 +168,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -200,7 +200,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter/Subtitle (Lấy chuỗi thông tin chap trong thẻ <p> chứa tên truyện, ví dụ: "2 chap")
+            // 4. Chapter/Subtitle
             const fullTitleText = $item.find('.box-description p').first().text().trim();
             const chapterMatch = fullTitleText.match(/-\s*(\d+\s*chap)/i);
             const lastChapter = chapterMatch ? chapterMatch[1] : undefined;
@@ -213,7 +213,7 @@ export class Parser {
                 .replace(/Lượt xem:\s*/i, '')
                 .trim();
 
-            const subtitle = viewsText ? `👁 ${viewsText}` : undefined;
+            const subtitle = lastChapter;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
@@ -221,7 +221,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
             }
@@ -266,18 +266,16 @@ export class Parser {
         $pageInfo.find('a.tag').each((_, element) => {
             const label = $(element).text().trim();
             const href = $(element).attr('href') || '';
-            // Lấy slug đằng sau /the-loai/
             const id = href.split('/the-loai/').pop()?.split('/')[0]?.split('?')[0] ?? '';
 
             if (id && label) {
-                arrayTags.push(App.createTag({ id: id, label: label }));
+                arrayTags.push(App.createTag({ id: id, label: decodeHTML(label) }));
             }
         });
 
         // 6. Mô tả (Lấy Tên khác + Lượt xem + Nội dung truyện)
         const altName = getInfoText('Tên Khác');
 
-        // Lấy lượt xem nằm trong span đứng sau span.info "Lượt xem:"
         const views = $pageInfo
             .find('span.info')
             .filter((_, el) => $(el).text().includes('Lượt xem'))
@@ -285,7 +283,6 @@ export class Parser {
             .text()
             .trim();
 
-        // Nội dung: Lấy text của thẻ <p style="white-space:pre-wrap">
         const rawDesc = $pageInfo.find('p[style*="white-space:pre-wrap"]').text().trim();
 
         const descParts: string[] = [];
@@ -301,8 +298,8 @@ export class Parser {
                 titles: [decodeHTML(title)],
                 image: image,
                 status: status,
-                author: author,
-                artist: author,
+                author: decodeHTML(author),
+                artist: decodeHTML(author),
                 desc: decodeHTML(description),
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: true,
@@ -310,16 +307,15 @@ export class Parser {
         });
     }
 
-    // Helper quy đổi thời gian tương đối (VD: "58 phút trước", "26 ngày trước") thành Date
+    // Helper quy đổi thời gian tương đối thành Date
     parseDate(dateStr: string): Date {
         if (!dateStr) return new Date();
 
-        // Tách "1/8/2026" -> day = 1, month = 8, year = 2026
         const [dayStr, monthStr, yearStr] = dateStr.split('/');
 
         if (dayStr && monthStr && yearStr) {
             const day = parseInt(dayStr, 10);
-            const month = parseInt(monthStr, 10) - 1; // JS Month chạy từ 0 đến 11 (Tháng 8 = index 7)
+            const month = parseInt(monthStr, 10) - 1;
             const year = parseInt(yearStr, 10);
 
             return new Date(year, month, day);
@@ -332,18 +328,15 @@ export class Parser {
     parseChapterList($: CheerioAPI): Chapter[] {
         const chapters: Chapter[] = [];
 
-        // Bắt chính xác danh sách các dòng chương từ table.listing
         $('table.listing tbody tr').each((index, element) => {
             const $row = $(element);
             const $a = $row.find('td a').first();
 
-            // 1. Tên chương (Lấy từ h2.chuong_t)
+            // 1. Tên chương
             const chapterName = $row.find('h2.chuong_t').text().trim() || $a.text().trim();
 
-            // 2. Lấy href (Ví dụ: "/truyen/dao-tan-bu-co-ban-tomboy-thuo-nho/1-ban-ngot-lim")
+            // 2. Lấy href
             const href = $a.attr('href') || '';
-
-            // Tách lấy slug làm chapter ID (Kết quả: "dao-tan-bu-co-ban-tomboy-thuo-nho/1-ban-ngot-lim")
             const rawSlug = href.split('/truyen/').pop() ?? '';
             const chapterId = rawSlug.split('?')[0] || href;
 
@@ -351,15 +344,15 @@ export class Parser {
             const chapNumMatch = chapterName.match(/(\d+(?:\.\d+)?)/);
             const chapNum = chapNumMatch?.[1] ? parseFloat(chapNumMatch[1]) : index + 1;
 
-            // 4. Thời gian cập nhật (Lấy từ <td> thứ 2: "1/8/2026")
-            const timeStr = $row.find('td').last().text().trim(); // "1/8/2026"
-            const time = this.parseDate(timeStr); // Trả về đối tượng Date chuẩn (1/8/2026)
+            // 4. Thời gian cập nhật
+            const timeStr = $row.find('td').last().text().trim();
+            const time = this.parseDate(timeStr);
 
             if (chapterId && chapterName) {
                 chapters.push(
                     App.createChapter({
                         id: chapterId,
-                        name: chapterName,
+                        name: decodeHTML(chapterName),
                         chapNum: chapNum,
                         langCode: '🇻🇳',
                         group: timeStr,
@@ -376,19 +369,15 @@ export class Parser {
     parseChapterDetails($: CheerioAPI): string[] {
         const pages: string[] = [];
 
-        // Lấy tất cả ảnh nằm trong #image
         $('#image img').each((_, element) => {
             const $img = $(element);
 
-            // Lấy link ảnh từ src, data-src hoặc data-original
             let pageUrl = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || '';
 
-            // Xử lý link bắt đầu bằng //
             if (pageUrl.startsWith('//')) {
                 pageUrl = `https:${pageUrl}`;
             }
 
-            // Lọc bỏ đường dẫn rỗng hoặc ảnh thumbnail mặc định
             if (pageUrl && !pageUrl.includes('thumb-default')) {
                 pages.push(pageUrl.trim());
             }
@@ -402,26 +391,22 @@ export class Parser {
         const genreTags: Tag[] = [];
         const sortTags: Tag[] = [];
 
-        // 1. Thể loại: ID CHỈ NÊN LÀ SLUG (Ví dụ: "3d-hentai", không chứa "=")
         $('ul.genre-cloud li a').each((_, element) => {
             const $item = $(element);
             const label = $item.text().trim();
             const href = $item.attr('href') || '';
-
-            // Trích xuất slug từ href (VD: /the-loai/3d-hentai -> 3d-hentai)
             const slug = href.split('/the-loai/').pop()?.split('/')[0]?.split('?')[0];
 
             if (slug && label) {
                 genreTags.push(
                     App.createTag({
-                        id: slug, // Chỉ lưu slug thuần túy
-                        label: label,
+                        id: slug,
+                        label: decodeHTML(label),
                     })
                 );
             }
         });
 
-        // 2. Sắp xếp: ID giữ dạng "key=value" (chứa "=")
         const sortOptions = [
             { id: 'sort=latest', label: 'Mới nhất' },
             { id: 'sort=oldest', label: 'Cũ nhất' },

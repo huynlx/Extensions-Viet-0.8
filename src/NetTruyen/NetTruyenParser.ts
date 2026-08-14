@@ -12,7 +12,8 @@ export class Parser {
 
             // 1. Title & Link chính từ thẻ h3
             const $titleLink = $item.find('.slide-caption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -27,7 +28,8 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất (lấy thẻ <a> thứ hai trong .slide-caption)
-            const lastChapter = $item.find('.slide-caption a').last().text().trim();
+            const rawLastChapter = $item.find('.slide-caption a').last().text().trim();
+            const lastChapter = decodeHTML(rawLastChapter);
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
@@ -52,7 +54,8 @@ export class Parser {
 
             // 1. Title & Link chính từ figcaption h3 a
             const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -67,7 +70,8 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất (lấy thẻ <a> chapter đầu tiên trong danh sách li.chapter)
-            const lastChapter = $item.find('ul li.chapter:first-child a').text().trim() || $item.find('.comic-item .chapter:first-child a').text().trim();
+            const rawLastChapter = $item.find('ul li.chapter:first-child a').text().trim() || $item.find('.comic-item .chapter:first-child a').text().trim();
+            const lastChapter = decodeHTML(rawLastChapter);
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
@@ -92,7 +96,8 @@ export class Parser {
 
             // 1. Title & Link từ figcaption h3 a
             const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -107,7 +112,8 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất
-            const lastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const rawLastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const lastChapter = decodeHTML(rawLastChapter);
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
@@ -133,7 +139,8 @@ export class Parser {
 
             // 1. Title & Link từ figcaption h3 a
             const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -148,13 +155,14 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất
-            const lastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const rawLastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const lastChapter = decodeHTML(rawLastChapter);
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
                         subtitle: lastChapter || undefined,
                     })
@@ -167,7 +175,8 @@ export class Parser {
 
     // Parse thông tin chi tiết truyện
     parseMangaDetails($: CheerioAPI, mangaId: string) {
-        const title = $('h1.title-detail').text().trim() || $('.title-detail').text().trim();
+        const rawTitle = $('h1.title-detail').text().trim() || $('.title-detail').text().trim();
+        const title = decodeHTML(rawTitle);
 
         let image = $('.detail-info img').attr('data-original') || $('.detail-info img').attr('src') || '';
         if (image.startsWith('//')) image = `https:${image}`;
@@ -187,20 +196,24 @@ export class Parser {
         });
 
         // 3. Tách từng dòng, làm sạch khoảng trắng và ghép lại
-        const description = $descEl
+        const rawDescription = $descEl
             .text()
             .split('\n')
             .map((line) => line.trim())
             .filter((line) => line.length > 0)
             .join('\n\n');
+        const description = decodeHTML(rawDescription);
 
-        const author = $('.author .col-xs-8').text().trim() || 'Đang cập nhật';
+        const rawAuthor = $('.author .col-xs-8').text().trim() || 'Đang cập nhật';
+        const author = decodeHTML(rawAuthor);
+
         const statusStr = $('.status .col-xs-8').text().trim();
         const status = statusStr.includes('Hoàn thành') ? 'Completed' : 'Ongoing';
 
         const arrayTags: Tag[] = [];
         $('.kind .col-xs-8 a').each((_, element) => {
-            const label = $(element).text().trim();
+            const rawLabel = $(element).text().trim();
+            const label = decodeHTML(rawLabel);
             const id = $(element).attr('href')?.split('/').pop() ?? '';
             if (id && label) {
                 arrayTags.push(App.createTag({ id: id, label: label }));
@@ -210,13 +223,13 @@ export class Parser {
         return App.createSourceManga({
             id: mangaId,
             mangaInfo: App.createMangaInfo({
-                titles: [decodeHTML(title)],
+                titles: [title],
                 image: image,
                 status: status,
                 author: author,
                 artist: author,
                 desc: description,
-                tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
+                tags: [App.createTagSection({ id: '0', label: decodeHTML('Thể loại'), tags: arrayTags })],
                 hentai: false,
             }),
         });
@@ -227,18 +240,18 @@ export class Parser {
         const chapters: Chapter[] = [];
 
         for (const item of data) {
-            // ID chapter có thể dùng chapter_id (dạng chuỗi) hoặc chapter_slug tuỳ theo cách bạn gọi API lấy ảnh chi tiết
-            //   { id: '523', name: 'Chapter 523', chapNum: 523, langCode: 'vi' }
-
             const formattedView = new Intl.NumberFormat('vi-VN').format(item.view);
 
             // Dùng thư viện ép kiểu chuỗi 'yyyy-MM-dd HH:mm:ss' sang 'dd/MM/yyyy'
             const formattedTime = item.updated_at ? format(parse(item.updated_at, 'yyyy-MM-dd HH:mm:ss', new Date()), 'dd/MM/yyyy') : '';
 
+            const rawName = item.chapter_name;
+            const name = decodeHTML(rawName);
+
             chapters.push(
                 App.createChapter({
                     id: item.chapter_num.toString(),
-                    name: item.chapter_name,
+                    name: name,
                     chapNum: item.chapter_num,
                     time: new Date(item.updated_at), // Khai báo thời gian cập nhật
                     group: formattedTime + ' • ' + formattedView + ' lượt xem',
@@ -277,11 +290,12 @@ export class Parser {
         const sortTags: Tag[] = [];
 
         // 1. Thêm thủ công tag "Tất cả" vào đầu danh sách Thể loại
-        genreTags.push(App.createTag({ id: 'all', label: 'Tất cả' }));
+        genreTags.push(App.createTag({ id: 'all', label: decodeHTML('Tất cả') }));
 
         // 2. Thể loại (Genres) - Phân biệt loại /tim-truyen và /tag
         $('#ctl00_divRight .genres ul.nav li a').each((_, element) => {
-            const label = decodeHTML($(element).text().trim());
+            const rawLabel = $(element).text().trim();
+            const label = decodeHTML(rawLabel);
             const href = $(element).attr('href') || '';
 
             if (!href || label.toLowerCase() === 'tất cả') {
@@ -305,9 +319,9 @@ export class Parser {
 
         // 3. Trạng thái (Status)
         const statusOptions = [
-            { id: 'status=', label: 'Tất cả' },
-            { id: 'status=2', label: 'Hoàn thành' },
-            { id: 'status=1', label: 'Đang tiến hành' },
+            { id: 'status=', label: decodeHTML('Tất cả') },
+            { id: 'status=2', label: decodeHTML('Hoàn thành') },
+            { id: 'status=1', label: decodeHTML('Đang tiến hành') },
         ];
 
         for (const option of statusOptions) {
@@ -316,14 +330,14 @@ export class Parser {
 
         // 4. Xếp hạng (Sort Options)
         const sortOptions = [
-            { id: 'sort=15', label: 'Truyện mới' },
-            { id: 'sort=10', label: 'Top all' },
-            { id: 'sort=11', label: 'Top tháng' },
-            { id: 'sort=12', label: 'Top tuần' },
-            { id: 'sort=13', label: 'Top ngày' },
-            { id: 'sort=20', label: 'Theo dõi nhiều' },
-            { id: 'sort=25', label: 'Bình luận nhiều' },
-            { id: 'sort=30', label: 'Số chapter' },
+            { id: 'sort=15', label: decodeHTML('Truyện mới') },
+            { id: 'sort=10', label: decodeHTML('Top all') },
+            { id: 'sort=11', label: decodeHTML('Top tháng') },
+            { id: 'sort=12', label: decodeHTML('Top tuần') },
+            { id: 'sort=13', label: decodeHTML('Top ngày') },
+            { id: 'sort=20', label: decodeHTML('Theo dõi nhiều') },
+            { id: 'sort=25', label: decodeHTML('Bình luận nhiều') },
+            { id: 'sort=30', label: decodeHTML('Số chapter') },
         ];
 
         for (const option of sortOptions) {
@@ -331,9 +345,9 @@ export class Parser {
         }
 
         return [
-            App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }),
-            App.createTagSection({ id: 'status', label: 'Trạng thái', tags: statusTags }),
-            App.createTagSection({ id: 'sort', label: 'Xếp hạng', tags: sortTags }),
+            App.createTagSection({ id: 'genres', label: decodeHTML('Thể loại'), tags: genreTags }),
+            App.createTagSection({ id: 'status', label: decodeHTML('Trạng thái'), tags: statusTags }),
+            App.createTagSection({ id: 'sort', label: decodeHTML('Xếp hạng'), tags: sortTags }),
         ];
     }
 }

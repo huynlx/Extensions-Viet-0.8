@@ -1,5 +1,6 @@
 import { Chapter, PartialSourceManga, SourceManga, Tag, TagSection } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
+import { decodeHTML } from 'entities';
 
 export class VinaHentaiParser {
     private imageUrlRegex = /https:\/\/[^"'\s\\]+\/manga-images\/[^"'\s\\]+/g;
@@ -16,11 +17,11 @@ export class VinaHentaiParser {
             const href = $el.attr('href') ?? '';
             const mangaId = href.split('/').pop() ?? '';
 
-            const title = $el.find('.text-txt-primary.line-clamp-1').text().trim() || $el.find('img').attr('alt') || '';
+            const title = decodeHTML($el.find('.text-txt-primary.line-clamp-1').text().trim() || $el.find('img').attr('alt') || '');
             const image = $el.find('img').attr('src') ?? '';
 
             const rank = $el.find('span.w-5').text().trim();
-            const views = $el.find('span.text-xs.font-medium').first().text().trim();
+            const views = decodeHTML($el.find('span.text-xs.font-medium').first().text().trim());
 
             let subtitle = views ? views : undefined;
             if (rank) {
@@ -50,9 +51,10 @@ export class VinaHentaiParser {
             const href = $el.attr('href') ?? '';
             const mangaId = href.split('/').pop() ?? '';
 
-            const title = $el.find('div.mt-1.5.truncate').attr('title') || $el.find('img').attr('alt') || '';
+            const title = decodeHTML($el.find('div.mt-1.5.truncate').attr('title') || $el.find('img').attr('alt') || '');
             const image = $el.find('img').attr('src') ?? '';
-            const subtitle = $el.find('span.text-white\\/90.font-semibold.truncate').attr('title') || undefined;
+            const subtitleAttr = $el.find('span.text-white\\/90.font-semibold.truncate').attr('title');
+            const subtitle = subtitleAttr ? decodeHTML(subtitleAttr) : undefined;
 
             if (mangaId && title) {
                 items.push(
@@ -77,15 +79,15 @@ export class VinaHentaiParser {
             if (!href) return;
 
             const titleDiv = $(el).find('div.truncate.font-semibold[title]');
-            const title = titleDiv.attr('title') || titleDiv.text().trim() || '';
+            const title = decodeHTML(titleDiv.attr('title') || titleDiv.text().trim() || '');
             const image = $(el).find('img').first().attr('src') || '';
 
             const mangaId = href.includes('/truyen-hentai/') ? href.split('/truyen-hentai/')[1]?.replace(/\/$/, '') || href : href;
 
-            // Lấy Subtitle từ div đầu tiên bên trong container .absolute inset-x-0.bottom-0.z-\[2\].min-w-0
             const $bottomContainer = $(el).find('div.absolute.inset-x-0.bottom-0.z-\\[2\\].min-w-0');
             const $firstDiv = $bottomContainer.children('div').first();
-            let subtitle = $firstDiv.find('span').first().text().trim() || undefined;
+            const subtitleText = $firstDiv.find('span').first().text().trim();
+            const subtitle = subtitleText ? decodeHTML(subtitleText) : undefined;
 
             if (mangaId && title) {
                 mangas.push(
@@ -109,7 +111,7 @@ export class VinaHentaiParser {
             const href = $(el).attr('href');
             if (!href) return;
 
-            const title = $(el).find('h2').text().trim();
+            const title = decodeHTML($(el).find('h2').text().trim());
             const image = $(el).find('img').first().attr('src') || '';
 
             const mangaId = href.includes('/truyen-hentai/') ? href.split('/truyen-hentai/')[1]?.replace(/\/$/, '') || href : href;
@@ -147,40 +149,36 @@ export class VinaHentaiParser {
     // ============================ DETAILS & CHAPTERS ============================
 
     parseMangaDetails($: CheerioAPI, mangaId: string): SourceManga {
-        // 1. Tên truyện chính (lấy từ thẻ h1)
-        const primaryTitle = $('h1').first().text().trim();
+        const primaryTitle = decodeHTML($('h1').first().text().trim());
         const titles = [primaryTitle].filter(Boolean);
 
-        // 2. Thể loại (Genres) - Lấy từ a[href*="/genres/"] và bỏ dấu "+"
         const tags: Tag[] = [];
         $('a[href*="/genres/"]').each((_, obj) => {
-            const label = $(obj).text().trim();
+            const rawLabel = $(obj).text().trim();
+            const label = decodeHTML(rawLabel);
             const id = $(obj).attr('href')?.split('/genres/')[1]?.split('?')[0]?.split('/')[0]?.trim() || label;
             if (label && !label.startsWith('+')) {
                 tags.push(App.createTag({ label, id }));
             }
         });
 
-        // 3. Tác giả (Authors) - Lấy từ a[href*="/authors/"] và bỏ dấu "+"
-        const author =
+        const author = decodeHTML(
             $('a[href*="/authors/"]')
                 .map((_, el) => $(el).text().trim())
                 .get()
                 .filter((text) => text && !text.startsWith('+'))
-                .join(', ') || 'Chưa rõ';
+                .join(', ') || 'Chưa rõ'
+        );
 
-        const artist = ''; // Khung Kotlin không tách riêng artist
+        const artist = '';
 
-        // 4. Ảnh bìa (Thumbnail) - Tìm img alt*=Bìa hoặc img src*=story-images
         let image = $('img[alt*="Bìa"]').attr('src') || $('img[src*="story-images"]').attr('src') || '';
         if (image.startsWith('//')) {
             image = `https:${image}`;
         }
 
-        // 5. Mô tả (Description) - Lấy từ #manga-description-section .text-txt-secondary
-        const desc = $('#manga-description-section .text-txt-secondary').text().trim();
+        const desc = decodeHTML($('#manga-description-section .text-txt-secondary').text().trim());
 
-        // 6. Tình trạng truyện (Status)
         const bodyText = $('body').text();
         let status = 'Đang tiến hành';
         if (bodyText.includes('Đã hoàn thành')) {
@@ -206,7 +204,6 @@ export class VinaHentaiParser {
     public parseChapterList($: CheerioAPI): Chapter[] {
         const rawChapters: Chapter[] = [];
 
-        // 1. Duyệt qua danh sách chapter trong DOM và đảo ngược thứ tự
         const elements = $('a.block[href*="/truyen-hentai/"]').get().reverse();
 
         elements.forEach((el, idx) => {
@@ -215,11 +212,13 @@ export class VinaHentaiParser {
             const parts = href.split('/').filter(Boolean);
             if (parts.length <= 2) return;
 
-            const name = $el.find('span').first().text().trim() || $el.text().trim();
+            const name = decodeHTML($el.find('span').first().text().trim() || $el.text().trim());
             const dateStr = $el.find('time').first().text().trim();
             const time = this.parseRelativeDate(dateStr);
 
             const chapterId = href.startsWith('/') ? href : `/${href}`;
+            const views = decodeHTML($el.find('span.text-txt-secondary').text().trim());
+            const group = views ? `${views} lượt xem` : undefined;
 
             rawChapters.push(
                 App.createChapter({
@@ -227,6 +226,8 @@ export class VinaHentaiParser {
                     name,
                     chapNum: idx + 1,
                     time,
+                    langCode: '🇻🇳',
+                    group,
                 })
             );
         });
@@ -242,50 +243,45 @@ export class VinaHentaiParser {
     parseGenres($: CheerioAPI): TagSection[] {
         const genreTags: Tag[] = [];
 
-        // 1. Lấy thể loại động từ HTML (giữ nguyên logic bóc tách URL /genres/ của bạn)
         $('a[href*="/genres/"]').each((_, el) => {
             const href = $(el).attr('href') || '';
             const slug = href.split('/genres/')[1]?.split('?')[0]?.split('/')[0]?.trim();
-            const name = $(el).text().trim();
+            const name = decodeHTML($(el).text().trim());
 
             if (slug && name) {
                 genreTags.push(App.createTag({ id: slug, label: name }));
             }
         });
 
-        // Lọc trùng lặp & sắp xếp Thể loại theo alphabet
         const uniqueGenreTags = Array.from(new Map(genreTags.map((t) => [t.id, t])).values()).sort((a, b) => a.label.localeCompare(b.label));
 
-        // 2. Thêm bộ lọc Sắp xếp (SortFilter) từ Kotlin
         const sortTags: Tag[] = [
-            App.createTag({ id: 'updatedAt', label: 'Mới cập nhật' }),
-            App.createTag({ id: 'views', label: 'Xem nhiều' }),
-            App.createTag({ id: 'likes', label: 'Đánh giá cao' }),
-            App.createTag({ id: 'oldest', label: 'Cũ nhất' }),
+            App.createTag({ id: 'updatedAt', label: decodeHTML('Mới cập nhật') }),
+            App.createTag({ id: 'views', label: decodeHTML('Xem nhiều') }),
+            App.createTag({ id: 'likes', label: decodeHTML('Đánh giá cao') }),
+            App.createTag({ id: 'oldest', label: decodeHTML('Cũ nhất') }),
         ];
 
-        // 3. Thêm bộ lọc Tình trạng (StatusFilter) từ Kotlin
         const statusTags: Tag[] = [
-            App.createTag({ id: '', label: 'Tất cả' }),
-            App.createTag({ id: 'ongoing', label: 'Đang tiến hành' }),
-            App.createTag({ id: 'completed', label: 'Đã hoàn thành' }),
+            App.createTag({ id: '', label: decodeHTML('Tất cả') }),
+            App.createTag({ id: 'ongoing', label: decodeHTML('Đang tiến hành') }),
+            App.createTag({ id: 'completed', label: decodeHTML('Đã hoàn thành') }),
         ];
 
-        // Trả về mảng TagSection[] chứa cả 3 bộ lọc
         return [
             App.createTagSection({
                 id: 'genres',
-                label: 'Thể loại',
+                label: decodeHTML('Thể loại'),
                 tags: uniqueGenreTags,
             }),
             App.createTagSection({
                 id: 'sort',
-                label: 'Sắp xếp theo',
+                label: decodeHTML('Sắp xếp theo'),
                 tags: sortTags,
             }),
             App.createTagSection({
                 id: 'status',
-                label: 'Tình trạng',
+                label: decodeHTML('Tình trạng'),
                 tags: statusTags,
             }),
         ];
@@ -351,11 +347,6 @@ export function isLastPageAllTime($: CheerioAPI): boolean {
         }
     });
 
-    // Nếu không tìm thấy trang hiện tại qua aria-current, thử check trang đầu tiên (không có param page)
-    if (currentPage === 1 && $pagination.find('a[href$="period=all-time"]').length > 0 && !$pagination.find('a[href*="page=2"]').length) {
-        // Có thể trang 1
-    }
-
     return currentPage >= maxPage;
 }
 
@@ -369,7 +360,6 @@ export function isLastPageSearch($: CheerioAPI): boolean {
         return true;
     }
 
-    // Kiểm tra xem trang hiện tại có phải là trang cuối trong danh sách phân trang hay không
     const $currentPageBtn = $('button[aria-current="page"]');
     if ($currentPageBtn.length > 0) {
         const currentPageTitle = $currentPageBtn.attr('title') || '';
@@ -384,7 +374,6 @@ export function isLastPageSearch($: CheerioAPI): boolean {
             }
         });
 
-        // Nếu nút trang cuối cùng trong dãy số bằng hoặc nhỏ hơn trang hiện tại và không còn nút số trang nào lớn hơn
         let hasHigherPage = false;
         $('button[title^="Trang "]').each((_, el) => {
             const title = $(el).attr('title') || '';
@@ -395,7 +384,6 @@ export function isLastPageSearch($: CheerioAPI): boolean {
         });
 
         if (!hasHigherPage) {
-            // Kiểm tra thêm nếu không có nút trang cao hơn, xem nút "Tới trang cuối" có active không (thường nếu đang ở trang cuối thì button "Cuối" cũng sẽ bị disable hoặc không đổi trang được)
             return true;
         }
     }

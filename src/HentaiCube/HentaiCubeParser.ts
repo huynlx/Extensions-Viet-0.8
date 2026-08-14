@@ -42,7 +42,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
                 addedMangaIds.add(mangaId);
@@ -91,7 +91,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -139,7 +139,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
                 addedMangaIds.add(mangaId);
@@ -188,7 +188,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
                 addedMangaIds.add(mangaId);
@@ -238,7 +238,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -286,7 +286,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -339,7 +339,7 @@ export class Parser {
             const id = segments.pop() ?? '';
 
             if (id && label) {
-                arrayTags.push(App.createTag({ id: id, label: label }));
+                arrayTags.push(App.createTag({ id: id, label: decodeHTML(label) }));
             }
         });
 
@@ -394,9 +394,9 @@ export class Parser {
                 titles: [decodeHTML(title)],
                 image: image,
                 status: status,
-                author: author,
-                artist: author,
-                desc: description,
+                author: decodeHTML(author),
+                artist: decodeHTML(author),
+                desc: decodeHTML(description),
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: true,
             }),
@@ -450,10 +450,10 @@ export class Parser {
                 chapters.push(
                     App.createChapter({
                         id: chapterId,
-                        name: chapterName,
+                        name: decodeHTML(chapterName),
                         chapNum: index + 1, // Đảm bảo số thứ tự tăng dần chuẩn xác từ 1 đến hết
                         langCode: '🇻🇳',
-                        group: timeStr,
+                        group: timeStr ? decodeHTML(timeStr) : '',
                         time: time,
                     })
                 );
@@ -482,7 +482,7 @@ export class Parser {
                 genreTags.push(
                     App.createTag({
                         id: slug,
-                        label: label,
+                        label: decodeHTML(label),
                     })
                 );
             }

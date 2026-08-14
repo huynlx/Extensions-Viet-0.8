@@ -12,7 +12,8 @@ export class Parser {
             // 1. Title & Link
             const $titleLink = $item.find('a.for-ads').first();
             const $titleEl = $item.find('.slide-title').first();
-            const title = $titleEl.text().trim();
+            let title = $titleEl.text().trim();
+            title = decodeHTML(title).replace(/\s+/g, ' ').trim();
             const href = $titleLink.attr('href') || '';
 
             // 2. Manga ID
@@ -36,8 +37,8 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Subtitle (khớp logic lấy số trang từ tiêu đề)
-            const subtitleMatch = title.match(/\(([^)]+photos[^)]*)\)/i);
+            // 4. Subtitle (Chuẩn hóa sạch sẽ, giữ nguyên định nghĩa số lượng ảnh)
+            const subtitleMatch = title.match(/\(([^)]+(?:photos|pictures|videos|P)[^)]*)\)/i);
             const subtitle = subtitleMatch?.[1]?.trim();
 
             const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
@@ -65,7 +66,8 @@ export class Parser {
 
             // 1. Title & Link
             const $titleLink = $item.find('.post-box-title a').first();
-            const title = $titleLink.text().trim();
+            let title = $titleLink.text().trim();
+            title = decodeHTML(title).replace(/\s+/g, ' ').trim();
             const href = $titleLink.attr('href') || $item.find('.post-thumbnail a').attr('href') || '';
 
             // 2. Manga ID
@@ -89,8 +91,8 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Subtitle (Đã fix lỗi TS2532)
-            const subtitleMatch = title.match(/\(([^)]+photos[^)]*)\)/i);
+            // 4. Subtitle
+            const subtitleMatch = title.match(/\(([^)]+(?:photos|pictures|videos|P)[^)]*)\)/i);
             const subtitle = subtitleMatch?.[1]?.trim();
 
             const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
@@ -116,13 +118,13 @@ export class Parser {
         $('.post-listing article.item-list').each((_, element) => {
             const $item = $(element);
 
-            // 1. Title & Link từ thẻ <a> trong .post-box-title
+            // 1. Title & Link
             const $titleLink = $item.find('.post-box-title a').first();
-            const title = $titleLink.text().trim();
+            let title = $titleLink.text().trim();
+            title = decodeHTML(title).replace(/\s+/g, ' ').trim();
             const href = $titleLink.attr('href') || $item.find('.post-thumbnail a').attr('href') || '';
 
-            // 2. Manga ID từ URL (VD: "https://misskon.com/99983-pure-media-vol300-yeha-165-photos/"
-            // -> "99983-pure-media-vol300-yeha-165-photos")
+            // 2. Manga ID
             let mangaId = '';
             try {
                 const urlObj = new URL(href);
@@ -131,7 +133,7 @@ export class Parser {
                 mangaId = href.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/|\/$/g, '');
             }
 
-            // 3. Image URL: Ưu tiên data-src do site sử dụng Lazy Loading (src mặc định chứa SVG placeholder)
+            // 3. Image URL
             const $img = $item.find('.post-thumbnail img').first();
             let image = $img.attr('data-src') || $img.attr('src') || '';
 
@@ -143,11 +145,10 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Subtitle: Bóc tách số lượng photos/videos trong tiêu đề (VD: "(38 photos + 2 videos)")
-            const subtitleMatch = title.match(/\(([^)]*(?:photos|pictures|videos)[^)]*)\)/i);
+            // 4. Subtitle
+            const subtitleMatch = title.match(/\(([^)]+(?:photos|pictures|videos|P)[^)]*)\)/i);
             const subtitle = subtitleMatch?.[1]?.trim();
 
-            // Ghép ID và URL ảnh bìa
             const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
 
             if (mangaId && title) {
@@ -168,17 +169,15 @@ export class Parser {
     parseMayLikeSection($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        // Cập nhật selector theo cấu trúc HTML mới: li.post-box.horizontal-small
         $('li.post-box.horizontal-small').each((_, element) => {
             const $item = $(element);
 
-            // 1. Title & Link: Ưu tiên lấy từ thẻ <a> trong .post-title, lấy thuộc tính title (nếu có) để tránh bị cắt chữ (…), sau đó đến text
             const $titleLink = $item.find('.post-title a').first();
             const $thumbLink = $item.find('.post-img a').first();
 
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim() || $thumbLink.attr('title')?.trim() || '';
+            let title = $titleLink.attr('title')?.trim() || $titleLink.text().trim() || $thumbLink.attr('title')?.trim() || '';
+            title = decodeHTML(title).replace(/\s+/g, ' ').trim();
 
-            // 2. Link & Manga ID
             const href = $titleLink.attr('href') || $thumbLink.attr('href') || '';
             let mangaId = '';
             try {
@@ -188,7 +187,6 @@ export class Parser {
                 mangaId = href.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/|\/$/g, '');
             }
 
-            // 3. Image URL: Ưu tiên data-lazy-src do site dùng Lazy Loading, sau đó đến src
             const $img = $item.find('.post-img img').first();
             let image = $img.attr('data-lazy-src') || $img.attr('data-src') || $img.attr('src') || '';
 
@@ -200,18 +198,16 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Subtitle: Bóc tách thông tin (VD: "[43P]" hoặc số lượng ảnh/video từ title)
             const subtitleMatch = title.match(/\(([^)]*(?:photos|anh|pictures|videos|P)[^)]*)\)/i);
             const subtitle = subtitleMatch?.[1]?.trim();
 
-            // Ghép ID và URL ảnh bìa
             const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
 
             if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: compositeId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
                         subtitle: subtitle,
                     })
@@ -222,22 +218,19 @@ export class Parser {
         return mangaList;
     }
 
-    // Parse danh sách truyện (Search, Homepage, ViewMore)
     parseSearchResults($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        // Cập nhật selector theo cấu trúc HTML mới: article.latestPost.excerpt
         $('article.latestPost.excerpt').each((_, element) => {
             const $item = $(element);
 
-            // 1. Title & Link từ thẻ <a> bao bọc ảnh hoặc thẻ <h2> tiêu đề
             const $titleLink = $item.find('header h2.title a').first();
             const $thumbLink = $item.find('a.post-image').first();
 
-            const title = $titleLink.text().trim() || $thumbLink.attr('title') || '';
+            let title = $titleLink.text().trim() || $thumbLink.attr('title') || '';
+            title = decodeHTML(title).replace(/\s+/g, ' ').trim();
             const href = $titleLink.attr('href') || $thumbLink.attr('href') || '';
 
-            // 2. Manga ID từ URL
             let mangaId = '';
             try {
                 const urlObj = new URL(href);
@@ -246,7 +239,6 @@ export class Parser {
                 mangaId = href.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/|\/$/g, '');
             }
 
-            // 3. Image URL: Ưu tiên data-lazy-src, sau đó đến data-src và src
             const $img = $item.find('img').first();
             let image = $img.attr('data-lazy-src') || $img.attr('data-src') || $img.attr('src') || '';
 
@@ -258,18 +250,16 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Subtitle: Bóc tách số lượng photos/videos trong tiêu đề (VD: "[44P]")
             const subtitleMatch = title.match(/\(([^)]*(?:photos|pictures|videos|P)[^)]*)\)/i);
             const subtitle = subtitleMatch?.[1]?.trim();
 
-            // Ghép ID và URL ảnh bìa
             const compositeId = `${mangaId}|${encodeURIComponent(image)}`;
 
             if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: compositeId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
                         subtitle: subtitle,
                     })
@@ -280,28 +270,29 @@ export class Parser {
         return mangaList;
     }
 
-    // Parse thông tin chi tiết truyện
     parseMangaDetails($: CheerioAPI, compositeId: string) {
-        // 1. Tiêu đề
+        // 1. Title (Clean & Decode)
         const rawTitle = $('h1.post-title, .entry-title, h1').first().text().trim();
-        const title = rawTitle.replace(/\s*-\s*\(\s*Page\s*\d+\s*\/\s*\d+\s*\)$/i, '').trim();
+        let title = rawTitle.replace(/\s*-\s*\(\s*Page\s*\d+\s*\/\s*\d+\s*\)$/i, '').trim();
+        title = decodeHTML(title).replace(/\s+/g, ' ').trim();
 
-        // 2. Bóc tách Lượt xem (Views)
+        // 2. Views
         const viewsText = $('.post-meta .post-views').text().trim();
         const viewsMatch = viewsText.match(/([\d,.]+)/);
         const views = viewsMatch?.[1] ? parseInt(viewsMatch[1].replace(/[,.]/g, ''), 10) : undefined;
 
-        // 3. Tác giả / Nguồn đăng
-        let author = 'ADMIN';
+        // 3. Author / Artist (Chuẩn hóa tên nguồn/tác giả hiển thị đẹp hơn)
+        const rawAuthor = $('.post-meta .author, .post-author a, .source-item').first().text().trim();
+        const author = rawAuthor ? decodeHTML(rawAuthor).replace(/\s+/g, ' ').trim() : 'Misskon';
 
-        // 4. Tags
+        // 4. Tags & Labels
         const arrayTags: Tag[] = [];
         $('.tags a, .post-tags a, .box.info a[href*="/tag/"]').each((_, element) => {
             const $tag = $(element);
-            const label = $tag.text().trim();
+            let label = $tag.text().trim();
+            label = decodeHTML(label).replace(/\s+/g, ' ').trim();
             const href = $tag.attr('href') || '';
 
-            // Lấy nguyên toàn bộ slug từ pathname làm id
             let id = '';
             try {
                 const urlObj = new URL(href);
@@ -315,21 +306,27 @@ export class Parser {
             }
         });
 
-        // 5. Mô tả
+        // 5. Description (Lọc các dòng mô tả, lượt xem, ngày tháng sạch sẽ)
         const descParts: string[] = [];
 
-        if (views !== undefined) {
-            descParts.push(`👁️ ${viewsText}`);
+        if (views !== undefined && viewsText) {
+            descParts.push(`👁️ Lượt xem: ${viewsText.replace(/\D/g, '')}`);
         }
 
-        const dateText = $('.post-info .thetime').first().text().trim();
+        const dateText = $('.post-info .thetime, .date.meta-item').first().text().trim();
         if (dateText) {
-            descParts.push(dateText);
+            descParts.push(`📅 Ngày đăng: ${dateText}`);
         }
 
-        const description = descParts.length > 0 ? descParts.join('\n') : '';
+        // Lấy thêm nội dung tóm tắt ngắn từ bài viết nếu có
+        const rawExcerpt = $('.entry-content p').first().text().trim();
+        if (rawExcerpt && rawExcerpt.length < 200) {
+            descParts.push(`\n${decodeHTML(rawExcerpt).replace(/\s+/g, ' ').trim()}`);
+        }
 
-        // 6. Ảnh bìa
+        const description = descParts.length > 0 ? descParts.join('\n') : 'Không có mô tả chi tiết.';
+
+        // 6. Cover Image
         const [realMangaId, encodedCover] = compositeId.split('|');
         let homeCoverUrl = encodedCover ? decodeURIComponent(encodedCover) : '';
 
@@ -347,42 +344,34 @@ export class Parser {
         return App.createSourceManga({
             id: compositeId,
             mangaInfo: App.createMangaInfo({
-                titles: [decodeHTML(title)],
+                titles: [title],
                 image: homeCoverUrl,
                 status: 'Completed',
                 author: author,
                 artist: author,
-                desc: decodeHTML(description),
+                desc: description,
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: true,
             }),
         });
     }
 
-    // Helper quy đổi thời gian tương đối (VD: "58 phút trước", "26 ngày trước") thành Date
     parseDate(dateStr: string): Date {
         if (!dateStr) return new Date();
-
-        // Tách "1/8/2026" -> day = 1, month = 8, year = 2026
         const [dayStr, monthStr, yearStr] = dateStr.split('/');
-
         if (dayStr && monthStr && yearStr) {
             const day = parseInt(dayStr, 10);
-            const month = parseInt(monthStr, 10) - 1; // JS Month chạy từ 0 đến 11 (Tháng 8 = index 7)
+            const month = parseInt(monthStr, 10) - 1;
             const year = parseInt(yearStr, 10);
-
             return new Date(year, month, day);
         }
-
         return new Date();
     }
 
-    // Parse trực tiếp mảng JSON thành danh sách Chapter
     parseChapterList($: CheerioAPI): Chapter[] {
         const chapters: Chapter[] = [];
         const seenChapNums = new Set<number>();
 
-        // 1. Lấy canonical slug của bài viết (dùng làm ID cho Trang 1)
         const canonicalHref = $('link[rel="canonical"]').attr('href') || '';
         const mainSlug = canonicalHref
             ? canonicalHref
@@ -391,26 +380,22 @@ export class Parser {
                   .trim()
             : '';
 
-        // 2. Duyệt qua tất cả các phần tử phân trang trong .page-link hoặc cấu trúc phân trang tương tự
         $('.page-link .post-page-numbers, .pagination .page-numbers, .wp-pagenavi .pages, .pagination span, .pagination a').each((_, element) => {
             const $el = $(element);
             const pageText = $el.text().trim();
             const chapNum = parseInt(pageText, 10);
 
-            // Bỏ qua nếu không phải số hợp lệ hoặc đã được thêm vào danh sách
             if (isNaN(chapNum) || seenChapNums.has(chapNum)) return;
 
             let chapterId = '';
 
             if ($el.is('a')) {
-                // Các trang 2, 3... (thẻ <a>) -> Lấy href bóc tách slug
                 const href = $el.attr('href') || '';
                 chapterId = href
                     .replace(/^https?:\/\/[^\/]+\//, '')
                     .replace(/\/$/, '')
                     .trim();
             } else {
-                // Trang 1 hiện tại (thẻ <span> hoặc thẻ khác không có href) -> Dùng mainSlug
                 chapterId = mainSlug;
             }
 
@@ -419,7 +404,7 @@ export class Parser {
                 chapters.push(
                     App.createChapter({
                         id: chapterId,
-                        name: `Trang ${chapNum}`,
+                        name: `Phần ${chapNum}`, // Đổi tên chapter từ "Trang X" thành "Phần X" chuyên nghiệp hơn
                         chapNum: chapNum,
                         time: new Date(),
                     })
@@ -427,12 +412,11 @@ export class Parser {
             }
         });
 
-        // 3. Fallback: Nếu bài viết ngắn chỉ có 1 trang (không có phân trang)
         if (chapters.length === 0 && mainSlug) {
             chapters.push(
                 App.createChapter({
                     id: mainSlug,
-                    name: 'Trang 1',
+                    name: 'Phần 1',
                     chapNum: 1,
                     time: new Date(),
                 })
@@ -442,29 +426,23 @@ export class Parser {
         return chapters;
     }
 
-    // Parse danh sách trang ảnh trong chapter
     parseChapterDetails($: CheerioAPI): string[] {
         const pages: string[] = [];
 
-        // Lấy tất cả ảnh từ phần nội dung bài viết
         $('.entry-content img, .thecontent img').each((_, element) => {
             const $img = $(element);
 
-            // Ưu tiên lấy từ các thuộc tính lazy-load (data-lazy-src, data-src) rồi mới đến src
             let pageUrl = $img.attr('data-lazy-src') || $img.attr('data-src') || $img.attr('src') || $img.attr('data-original') || '';
             pageUrl = pageUrl.trim();
 
-            // Nếu giá trị lấy được là placeholder dạng base64/SVG, fallback lại lần nữa
             if (pageUrl.startsWith('data:image')) {
                 pageUrl = $img.attr('data-lazy-src') || $img.attr('data-src') || '';
             }
 
-            // Chuẩn hóa link dạng protocol-relative (//)
             if (pageUrl.startsWith('//')) {
                 pageUrl = `https:${pageUrl}`;
             }
 
-            // Lọc bỏ link rỗng, ảnh placeholder hoặc ảnh trùng lặp
             if (pageUrl && !pageUrl.startsWith('data:image') && !pageUrl.includes('thumb-default') && !pages.includes(pageUrl)) {
                 pages.push(pageUrl);
             }
@@ -473,7 +451,6 @@ export class Parser {
         return pages;
     }
 
-    // Parse danh sách thể loại (Tags)
     parseTags($: CheerioAPI): TagSection[] {
         const tags: Tag[] = [];
 
@@ -485,23 +462,25 @@ export class Parser {
             const countText = $countSpan.text().trim();
 
             $countSpan.remove();
-            const label = $a.text().trim();
+            let label = $a.text().trim();
+            // Chuẩn hóa và decode HTML cho nhãn thể loại
+            label = decodeHTML(label).replace(/\s+/g, ' ').trim();
 
-            // Lấy nguyên toàn bộ slug từ pathname làm id (ví dụ: /category/cosplay/ -> category/cosplay hoặc cosplay tùy cấu trúc)
             let id = '';
             try {
                 const urlObj = new URL(href);
-                // Giữ lại toàn bộ path sạch (bỏ dấu / ở đầu và cuối)
                 id = urlObj.pathname.replace(/^\/|\/$/g, '');
             } catch {
                 id = href.replace(/^https?:\/\/[^\/]+/, '').replace(/^\/|\/$/g, '');
             }
 
             if (id && label) {
+                // Tùy chỉnh hiển thị label của tag (có kèm số lượng hoặc giữ nguyên)
+                const formattedLabel = countText ? `${label} (${countText.replace(/\D/g, '')})` : label;
                 tags.push(
                     App.createTag({
                         id: id,
-                        label: `${label} ${countText}`.trim(),
+                        label: formattedLabel,
                     })
                 );
             }

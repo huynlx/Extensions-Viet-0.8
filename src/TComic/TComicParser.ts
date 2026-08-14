@@ -13,9 +13,9 @@ export class Parser {
             if (Array.isArray(data?.comics)) {
                 for (const comic of data.comics.slice(0, 12)) {
                     const mangaId = comic.id || comic.slug || '';
-                    const title = comic.title?.trim() || '';
+                    const title = decodeHTML(comic.title?.trim() || '');
                     const image = comic.thumbnail || '';
-                    const lastChapter = comic.last_chapter?.name || undefined;
+                    const lastChapter = comic.last_chapter?.name ? decodeHTML(comic.last_chapter.name) : undefined;
 
                     if (mangaId && title) {
                         mangaList.push(
@@ -45,9 +45,9 @@ export class Parser {
             if (Array.isArray(data?.comics)) {
                 for (const comic of data.comics) {
                     const mangaId = comic.id || comic.slug || '';
-                    const title = comic.title?.trim() || '';
+                    const title = decodeHTML(comic.title?.trim() || '');
                     const image = comic.thumbnail || '';
-                    const lastChapter = comic.last_chapter?.name || undefined;
+                    const lastChapter = comic.last_chapter?.name ? decodeHTML(comic.last_chapter.name) : undefined;
 
                     if (mangaId && title) {
                         mangaList.push(
@@ -85,7 +85,8 @@ export class Parser {
 
             // 1. Title & Link từ figcaption h3 a
             const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -100,15 +101,16 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất
-            const lastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const rawLastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const lastChapter = rawLastChapter ? decodeHTML(rawLastChapter) : undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: lastChapter,
                     })
                 );
             }
@@ -122,27 +124,25 @@ export class Parser {
         const data = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
         const item = data?.data || {};
 
-        const title = item.title?.trim() || '';
+        const title = decodeHTML(item.title?.trim() || '');
         const image = item.thumbnail || '';
-        const author = item.authors?.trim() || 'Đang cập nhật';
+        const author = decodeHTML(item.authors?.trim() || 'Đang cập nhật');
 
         // 1. Chuẩn hóa trạng thái: ONGOING -> Ongoing, các trường hợp khác -> Completed
         const status = item.status === 'ONGOING' ? 'Ongoing' : 'Completed';
 
-        // 2. Làm sạch description (Lọc bỏ thẻ HTML như <p>, <em>, <strong>, <div>)
+        // 2. Làm sạch description (Lọc bỏ thẻ HTML như <p>, <em>, <strong>, <div>) và decode HTML entities
         let rawDesc = item.description || '';
-        let description = rawDesc
-            .replace(/<[^>]*>/g, '') // Loại bỏ toàn bộ thẻ HTML
-            .trim();
+        let description = decodeHTML(rawDesc.replace(/<[^>]*>/g, '').trim());
 
         // 3. Parse danh mục thể loại (genres)
         const arrayTags: Tag[] = [];
         if (Array.isArray(item.genres)) {
             for (const genre of item.genres) {
                 const tagId = genre.id || genre.slug || '';
-                const tagLabel = genre.name || genre.title || '';
+                const tagLabel = decodeHTML(genre.name || genre.title || '');
                 if (tagId && tagLabel) {
-                    arrayTags.push(App.createTag({ id: String(tagId), label: String(tagLabel) }));
+                    arrayTags.push(App.createTag({ id: String(tagId), label: tagLabel }));
                 }
             }
         }
@@ -151,7 +151,7 @@ export class Parser {
         const titles: string[] = [title];
         if (Array.isArray(item.other_names)) {
             for (const otherName of item.other_names) {
-                const trimmed = otherName?.trim();
+                const trimmed = decodeHTML(otherName?.trim() || '');
                 if (trimmed && trimmed !== title) {
                     titles.push(trimmed);
                 }
@@ -186,8 +186,8 @@ export class Parser {
             const chapterId = item.id?.toString() || item.slug_chapter || '';
             if (!chapterId) continue;
 
-            // 2. Lấy tên Chapter (VD: "Chapter 3")
-            const chapterName = item.name?.trim() || `Chapter ${data.length - i}`;
+            // 2. Lấy tên Chapter (VD: "Chapter 3") và decode HTML entities
+            const chapterName = decodeHTML(item.name?.trim() || `Chapter ${data.length - i}`);
 
             // 3. Tách số Chapter từ tên (VD: "Chapter 3.5" -> 3.5)
             const chapNumMatch = chapterName.match(/chapter\s*([\d.]+)/i) || chapterName.match(/(\d+(\.\d+)?)/);
@@ -267,7 +267,7 @@ export class Parser {
             if (Array.isArray(categories)) {
                 for (const item of categories) {
                     const id = item.id?.toString() || '';
-                    const label = item.name?.trim() || '';
+                    const label = decodeHTML(item.name?.trim() || '');
 
                     if (id && label && id !== 'all') {
                         genreTags.push(App.createTag({ id, label }));

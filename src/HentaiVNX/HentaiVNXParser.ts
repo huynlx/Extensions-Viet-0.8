@@ -11,7 +11,8 @@ export class Parser {
 
             // 1. Title & Link chính từ thẻ h3
             const $titleLink = $item.find('.slide-caption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -26,15 +27,16 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất (lấy thẻ <a> thứ hai trong .slide-caption)
-            const lastChapter = $item.find('.slide-caption a').last().text().trim();
+            const rawLastChapter = $item.find('.slide-caption a').last().text().trim();
+            const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: subtitle,
                     })
                 );
             }
@@ -51,7 +53,8 @@ export class Parser {
 
             // 1. Title & Link chính từ figcaption h3 a
             const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -66,15 +69,16 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất (lấy thẻ <a> chapter đầu tiên trong danh sách li.chapter)
-            const lastChapter = $item.find('ul li.chapter:first-child a').text().trim() || $item.find('.comic-item .chapter:first-child a').text().trim();
+            const rawLastChapter = $item.find('ul li.chapter:first-child a').text().trim() || $item.find('.comic-item .chapter:first-child a').text().trim();
+            const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: subtitle,
                     })
                 );
             }
@@ -91,7 +95,8 @@ export class Parser {
 
             // 1. Title & Link từ figcaption h3 a
             const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -106,15 +111,16 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất
-            const lastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const rawLastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: subtitle,
                     })
                 );
             }
@@ -132,7 +138,8 @@ export class Parser {
 
             // 1. Title & Link từ figcaption h3 a
             const $titleLink = $item.find('figcaption h3 a').first();
-            const title = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const rawTitle = $titleLink.attr('title')?.trim() || $titleLink.text().trim();
+            const title = decodeHTML(rawTitle);
 
             // 2. Manga ID từ Href
             const href = $titleLink.attr('href') || $item.find('a').first().attr('href') || '';
@@ -147,15 +154,16 @@ export class Parser {
             }
 
             // 4. Chapter mới nhất
-            const lastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const rawLastChapter = $item.find('.comic-item .chapter').first().find('a').text().trim();
+            const subtitle = rawLastChapter ? decodeHTML(rawLastChapter) : undefined;
 
             if (mangaId && title && !mangaId.includes('javascript')) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: subtitle,
                     })
                 );
             }
@@ -166,15 +174,17 @@ export class Parser {
 
     // Parse thông tin chi tiết truyện
     parseMangaDetails($: CheerioAPI, mangaId: string) {
-        const title = $('h1.title-detail').text().trim() || $('.title-detail').text().trim();
+        const rawTitle = $('h1.title-detail').text().trim() || $('.title-detail').text().trim();
+        const title = decodeHTML(rawTitle);
 
         // Lấy ảnh bìa
         let image = $('.detail-info .col-image img').attr('src') || $('.detail-info img').attr('data-original') || '';
         if (image.startsWith('//')) image = `https:${image}`;
 
-        // Lấy tác giả
+        // Lấy tác giả & nghệ sĩ
         const authorStr = $('.list-info .author .col-xs-8').text().trim();
-        const author = authorStr && authorStr !== 'Đang cập nhật' ? authorStr : 'Đang cập nhật';
+        const rawAuthor = authorStr && authorStr !== 'Đang cập nhật' ? authorStr : 'Đang cập nhật';
+        const author = decodeHTML(rawAuthor);
 
         // Xác định trạng thái
         const statusStr = $('.list-info .status .col-xs-8').text().trim();
@@ -183,9 +193,9 @@ export class Parser {
         // Lấy danh sách thể loại
         const arrayTags: Tag[] = [];
         $('.list-info .kind .col-xs-8 a').each((_, element) => {
-            const label = $(element).text().trim();
+            const rawLabel = $(element).text().trim();
+            const label = decodeHTML(rawLabel);
             const href = $(element).attr('href') || '';
-            // Lấy slug ID đằng sau /tim-truyen/
             const id = href.split('/tim-truyen/').pop()?.split('/')[0]?.split('?')[0] ?? '';
 
             if (id && label) {
@@ -193,20 +203,31 @@ export class Parser {
             }
         });
 
-        // Lấy rating và lượt xem để đưa vào phần mô tả nếu không có đoạn text mô tả riêng
+        // Lấy thông tin phụ để làm mô tả chi tiết sạch sẽ, đầy đủ
+        const rawAltName = $('.list-info .other-name .col-xs-8').text().trim();
+        const altName = decodeHTML(rawAltName);
         const views = $('.list-info .row:has(.fa-eye) .col-xs-8').text().trim();
         const rating = $('.mrt5.mrb10 span:has(span)').text().replace(/\s+/g, ' ').trim();
-        const description = `Lượt xem: ${views}\n${rating}`;
+        const rawMainDesc = $('.detail-content .content').text().trim();
+        const mainDesc = decodeHTML(rawMainDesc);
+
+        const descParts: string[] = [];
+        if (altName && altName !== 'Đang cập nhật') descParts.push(`Tên khác: ${altName}`);
+        if (views) descParts.push(`👁 Lượt xem: ${views}`);
+        if (rating) descParts.push(`⭐ Đánh giá: ${rating}`);
+        if (mainDesc) descParts.push(`\n${mainDesc}`);
+
+        const description = descParts.join('\n');
 
         return App.createSourceManga({
             id: mangaId,
             mangaInfo: App.createMangaInfo({
-                titles: [decodeHTML(title)],
+                titles: [title],
                 image: image,
                 status: status,
                 author: author,
                 artist: author,
-                desc: decodeHTML(description),
+                desc: description,
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: true,
             }),
@@ -245,16 +266,13 @@ export class Parser {
             const $row = $(element);
             const $a = $row.find('.chapter a');
 
-            const chapterName = $a.text().trim(); // VD: "Chapter 5"
+            const rawChapterName = $a.text().trim(); // VD: "Chapter 5"
+            const chapterName = decodeHTML(rawChapterName);
             const dataId = $a.attr('data-id') || ''; // VD: "853722"
             const href = $a.attr('href') || ''; // VD: "https://www.hentaivnx.com/truyen-hentai/tong-hop-truyen-cua-tac-gia-otokam/chapter-5/853722"
 
             // Lấy slug path đằng sau /truyen-hentai/ làm ID duy nhất cho chapter
             const chapterId = href.split('/truyen-hentai/').pop() || dataId;
-
-            // Trích xuất số chương (VD: "Chapter 5" -> 5)
-            // const chapNumMatch = chapterName.match(/(\d+(\.\d+)?)/);
-            // const chapNum = chapNumMatch ? parseFloat(chapNumMatch[1]) : 0;
 
             // Parse thời gian cập nhật
             const timeStr = $row.find('.col-xs-4.text-center').text().trim();
@@ -310,13 +328,13 @@ export class Parser {
             const $item = $(element);
 
             // Lấy label từ thuộc tính title hoặc text của .genre-item
-            const label = decodeHTML($item.attr('title')?.trim() || $item.text().trim());
+            const rawLabel = $item.attr('title')?.trim() || $item.text().trim();
+            const label = decodeHTML(rawLabel);
 
-            // Lấy data-id từ thẻ span bên trong (VD: data-id="25" -> id: "genres=25" hoặc "25")
+            // Lấy data-id từ thẻ span bên trong
             const dataId = $item.find('span').attr('data-id')?.trim();
 
             if (dataId && label) {
-                // Lưu ID dưới dạng query parameter "genres=id" để dễ truyền vào search
                 genreTags.push(App.createTag({ id: `genres=${dataId}`, label: label }));
             }
         });

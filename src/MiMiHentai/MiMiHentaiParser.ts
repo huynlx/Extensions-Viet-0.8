@@ -13,11 +13,11 @@ export class Parser {
 
         for (const item of json.items) {
             const mangaId = item.id ? String(item.id) : '';
-            const title = item.title?.trim() || '';
+            const title = decodeHTML(item.title?.trim() || '');
             const image = item.cover_url || '';
 
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
-            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
+            const subtitle = item.chapter_count !== undefined ? decodeHTML(`${item.chapter_count} chap`) : undefined;
 
             if (mangaId && title) {
                 mangaList.push(
@@ -43,11 +43,11 @@ export class Parser {
 
         for (const item of json.items) {
             const mangaId = item.id ? String(item.id) : '';
-            const title = item.title?.trim() || '';
+            const title = decodeHTML(item.title?.trim() || '');
             const image = item.cover_url || '';
 
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
-            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
+            const subtitle = item.chapter_count !== undefined ? decodeHTML(`${item.chapter_count} chap`) : undefined;
 
             if (mangaId && title) {
                 mangaList.push(
@@ -73,11 +73,11 @@ export class Parser {
 
         for (const item of json.items) {
             const mangaId = item.id ? String(item.id) : '';
-            const title = item.title?.trim() || '';
+            const title = decodeHTML(item.title?.trim() || '');
             const image = item.cover_url || '';
 
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
-            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
+            const subtitle = item.chapter_count !== undefined ? decodeHTML(`${item.chapter_count} chap`) : undefined;
 
             if (mangaId && title) {
                 mangaList.push(
@@ -103,11 +103,11 @@ export class Parser {
 
         for (const item of json.items) {
             const mangaId = item.id ? String(item.id) : '';
-            const title = item.title?.trim() || '';
+            const title = decodeHTML(item.title?.trim() || '');
             const image = item.cover_url || '';
 
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
-            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
+            const subtitle = item.chapter_count !== undefined ? decodeHTML(`${item.chapter_count} chap`) : undefined;
 
             if (mangaId && title) {
                 mangaList.push(
@@ -136,21 +136,21 @@ export class Parser {
 
         for (const item of items) {
             const mangaId = item.id ? String(item.id) : '';
-            const title = item.title || '';
+            const title = decodeHTML(item.title || '');
             const image = item.cover_url || '';
 
             // Ưu tiên hiển thị Tác giả ở subtitle, nếu không có thì hiển thị Số chương
-            const author = Array.isArray(item.authors) && item.authors.length > 0 ? item.authors[0].name : undefined;
+            const author = Array.isArray(item.authors) && item.authors.length > 0 ? decodeHTML(item.authors[0].name) : undefined;
             const chapterText = item.chapter_count ? `${item.chapter_count} chương` : undefined;
-            const subtitle = author || chapterText;
+            const subtitle = decodeHTML(author || chapterText || '');
 
             if (mangaId && title) {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: decodeHTML(title),
+                        title: title,
                         image: image,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? subtitle : undefined,
                     })
                 );
             }
@@ -169,11 +169,11 @@ export class Parser {
 
         for (const item of json.items) {
             const mangaId = item.id ? String(item.id) : '';
-            const title = item.title?.trim() || '';
+            const title = decodeHTML(item.title?.trim() || '');
             const image = item.cover_url || '';
 
             // Đọc số lượng chapter (VD: "52 chap" hoặc "52 Chaptes")
-            const subtitle = item.chapter_count !== undefined ? `${item.chapter_count} chap` : undefined;
+            const subtitle = item.chapter_count !== undefined ? decodeHTML(`${item.chapter_count} chap`) : undefined;
 
             if (mangaId) {
                 mangaList.push(
@@ -193,7 +193,7 @@ export class Parser {
     // Parse thông tin chi tiết truyện
     parseMangaDetails($: CheerioAPI, mangaId: string): SourceManga {
         // 1. Tiêu đề
-        const title = $('h1').first().text().trim();
+        const title = decodeHTML($('h1').first().text().trim());
 
         // 2. Ảnh bìa
         let image = $('img[src*="cover-images"]').first().attr('src') || $('img[src*="moe-cdn.net"]').first().attr('src') || '';
@@ -202,19 +202,19 @@ export class Parser {
         }
 
         // 3. Tác giả
-        let author = 'Đang cập nhật';
+        let author = decodeHTML('Đang cập nhật');
         $('div')
             .filter((_, el) => $(el).prev('h3').text().includes('Tác giả') || $(el).find('a[href*="/authors/"]').length > 0)
             .find('a[href*="/authors/"]')
             .first()
             .each((_, el) => {
                 const name = $(el).find('.text-white').text().trim() || $(el).text().trim();
-                if (name) author = name;
+                if (name) author = decodeHTML(name);
             });
 
-        if (author === 'Đang cập nhật') {
+        if (author === decodeHTML('Đang cập nhật')) {
             const headerAuthor = $('a[href*="/authors/"]').first().text().trim();
-            if (headerAuthor) author = headerAuthor;
+            if (headerAuthor) author = decodeHTML(headerAuthor);
         }
 
         // 4. Trích xuất Tags (Thể loại, Parody, Nhân vật)
@@ -228,7 +228,7 @@ export class Parser {
                 const href = $tag.attr('href') || '';
                 const rawId = href.split(urlPattern).pop()?.split('/')[0]?.split('?')[0] ?? '';
 
-                const label = $tag.find('div').first().text().trim() || $tag.text().trim();
+                const label = decodeHTML($tag.find('div').first().text().trim() || $tag.text().trim());
 
                 if (rawId && label) {
                     // Thêm prefix (parody-, character-) vào ID tag
@@ -241,19 +241,19 @@ export class Parser {
         // a. Thể loại (/genres/) -> Gắn prefix 'genre-'
         const genreTags = extractTagsFromUrl('/genres/', 'genre-');
         if (genreTags.length > 0) {
-            tagSections.push(App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }));
+            tagSections.push(App.createTagSection({ id: 'genres', label: decodeHTML('Thể loại'), tags: genreTags }));
         }
 
         // b. Parody (/parodies/) -> Gắn prefix 'parody-'
         const parodyTags = extractTagsFromUrl('/parodies/', 'parody-');
         if (parodyTags.length > 0) {
-            tagSections.push(App.createTagSection({ id: 'parodies', label: 'Parody', tags: parodyTags }));
+            tagSections.push(App.createTagSection({ id: 'parodies', label: decodeHTML('Parody'), tags: parodyTags }));
         }
 
         // c. Nhân vật (/characters/) -> Gắn prefix 'character-'
         const characterTags = extractTagsFromUrl('/characters/', 'character-');
         if (characterTags.length > 0) {
-            tagSections.push(App.createTagSection({ id: 'characters', label: 'Nhân vật', tags: characterTags }));
+            tagSections.push(App.createTagSection({ id: 'characters', label: decodeHTML('Nhân vật'), tags: characterTags }));
         }
 
         // 5. Mô tả & Thống kê
@@ -269,17 +269,17 @@ export class Parser {
         if (likes) descParts.push(`❤️ Lượt thích: ${likes}`);
         if (follows) descParts.push(`📌 Theo dõi: ${follows}`);
 
-        const description = descParts.join('\n');
+        const description = decodeHTML(descParts.join('\n'));
 
         return App.createSourceManga({
             id: mangaId,
             mangaInfo: App.createMangaInfo({
-                titles: [decodeHTML(title)],
+                titles: [title],
                 image: image,
                 status: 'Ongoing',
                 author: author,
                 artist: author,
-                desc: decodeHTML(description),
+                desc: description,
                 tags: tagSections,
                 hentai: true,
             }),
@@ -317,6 +317,7 @@ export class Parser {
             if (!chapterName) {
                 chapterName = $a.find('span.break-all, span.text-zinc-400').first().text().trim() || $a.text().trim();
             }
+            chapterName = decodeHTML(chapterName);
 
             // 3. Gán chapNum theo vị trí xuất hiện (HTML đã sắp xếp từ MỚI nhất -> CŨ nhất)
             const chapNum = totalChapters - index;
@@ -374,11 +375,11 @@ export class Parser {
     // Parse danh sách thể loại (Tags)
     parseTags($genres: CheerioAPI, $home?: CheerioAPI): TagSection[] {
         const sortTags: Tag[] = [
-            App.createTag({ id: 'sort-updated_at', label: 'Mới' }),
-            App.createTag({ id: 'sort-title', label: 'A-Z' }),
-            App.createTag({ id: 'sort-views', label: 'Xem nhiều' }),
-            App.createTag({ id: 'sort-follows', label: 'Theo dõi' }),
-            App.createTag({ id: 'sort-likes', label: 'Thích' }),
+            App.createTag({ id: 'sort-updated_at', label: decodeHTML('Mới') }),
+            App.createTag({ id: 'sort-title', label: decodeHTML('A-Z') }),
+            App.createTag({ id: 'sort-views', label: decodeHTML('Xem nhiều') }),
+            App.createTag({ id: 'sort-follows', label: decodeHTML('Theo dõi') }),
+            App.createTag({ id: 'sort-likes', label: decodeHTML('Thích') }),
         ];
 
         const genreTags: Tag[] = [];
@@ -439,13 +440,13 @@ export class Parser {
         const sections: TagSection[] = [];
 
         if (albumTags.length > 0) {
-            sections.push(App.createTagSection({ id: 'albums', label: 'Album nổi bật', tags: albumTags }));
+            sections.push(App.createTagSection({ id: 'albums', label: decodeHTML('Album nổi bật'), tags: albumTags }));
         }
 
-        sections.push(App.createTagSection({ id: 'sorts', label: 'Sắp xếp', tags: sortTags }));
+        sections.push(App.createTagSection({ id: 'sorts', label: decodeHTML('Sắp xếp'), tags: sortTags }));
 
         if (genreTags.length > 0) {
-            sections.push(App.createTagSection({ id: 'genres', label: 'Thể loại', tags: genreTags }));
+            sections.push(App.createTagSection({ id: 'genres', label: decodeHTML('Thể loại'), tags: genreTags }));
         }
 
         return sections;

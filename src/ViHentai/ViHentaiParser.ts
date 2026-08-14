@@ -1,5 +1,6 @@
 import { Chapter, PartialSourceManga, SourceManga, Tag, TagSection } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
+import { decodeHTML } from 'entities';
 import genreTagsJson from './includes/genreTags.json';
 
 const BASE_CHARSET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/';
@@ -84,7 +85,7 @@ export class Parser {
 
             // 1. Tên truyện & Href -> Manga ID
             const $titleEl = $manga.find('div.p-2 a');
-            const title = $titleEl.text().trim();
+            const title = decodeHTML($titleEl.text().trim());
             const href = $titleEl.attr('href') || '';
             const id = href.split('/').filter(Boolean).pop();
 
@@ -98,7 +99,7 @@ export class Parser {
             }
 
             // 3. Subtitle (Chapter mới nhất)
-            const subtitle = $manga.find('.latest-chapter a').text().trim();
+            const subtitle = decodeHTML($manga.find('.latest-chapter a').text().trim());
 
             if (id && title && !processedIds.has(id)) {
                 processedIds.add(id);
@@ -125,7 +126,7 @@ export class Parser {
             .each((_, el) => {
                 const link = $(el).find('a[href*="/truyen/"]').first();
                 const href = link.attr('href');
-                const title = link.text().trim();
+                const title = decodeHTML(link.text().trim());
 
                 // Lấy URL ảnh bìa từ inline style background-image
                 const bg = $(el).find('div.cover-xs, div[style*="background-image"]').attr('style');
@@ -141,7 +142,7 @@ export class Parser {
                     const viewsNum = parseInt(viewsRaw, 10);
                     viewsText = isNaN(viewsNum) ? viewsRaw : `${viewsNum.toLocaleString('vi-VN')} lượt xem`;
                 } else {
-                    viewsText = $(el).find('span.text-sm').text().trim();
+                    viewsText = decodeHTML($(el).find('span.text-sm').text().trim());
                 }
 
                 if (href && title) {
@@ -180,7 +181,7 @@ export class Parser {
 
             // Lấy Title & Manga ID
             const $titleEl = $manga.find('a[href*="/truyen/"]');
-            const title = $titleEl.text().trim();
+            const title = decodeHTML($titleEl.text().trim());
             const href = $titleEl.attr('href') ?? '';
             const id = href.split('/').filter(Boolean).pop();
 
@@ -199,7 +200,7 @@ export class Parser {
             }
 
             // Lấy Subtitle (Mô tả ngắn)
-            const subtitle = $manga.find('span.break-all').text().trim();
+            const subtitle = decodeHTML($manga.find('span.break-all').text().trim());
 
             if (id && title) {
                 recommendItems.push(
@@ -224,7 +225,7 @@ export class Parser {
 
             // Lấy title và href từ thẻ a trong .p-2
             const $titleLink = $manga.find('.p-2 a.text-ellipsis');
-            const title = $titleLink.text().trim();
+            const title = decodeHTML($titleLink.text().trim());
             const href = $titleLink.attr('href') || '';
 
             // Tách mangaId từ slug URL (ví dụ: "/truyen/co-gai-vo-cam-va-ban-trai-da-cam" -> "co-gai-vo-cam-va-ban-trai-da-cam")
@@ -243,7 +244,7 @@ export class Parser {
             }
 
             // Lấy chương mới nhất làm subtitle
-            const subtitle = $manga.find('.latest-chapter a').text().trim();
+            const subtitle = decodeHTML($manga.find('.latest-chapter a').text().trim());
 
             if (id && title) {
                 tiles.push(
@@ -268,7 +269,7 @@ export class Parser {
 
         // 1. Lấy thể loại (Tags) trong container
         $container.find('a[href*="/the-loai/"]').each((_: any, obj: any) => {
-            const label = $(obj).text().trim();
+            const label = decodeHTML($(obj).text().trim());
             const id = $(obj).attr('href')?.split('/the-loai/')[1] ?? label;
             if (label) {
                 tags.push(App.createTag({ label, id }));
@@ -276,20 +277,20 @@ export class Parser {
         });
 
         // 2. Tên truyện chính
-        const primaryTitle = $container.find('span.text-lg').text().trim();
+        const primaryTitle = decodeHTML($container.find('span.text-lg').text().trim());
         const titles = [primaryTitle].filter(Boolean);
 
         // 3. Tác giả & Nhóm dịch
         const author =
             $container
                 .find('a[href*="/tac-gia/"]')
-                .map((_, el) => $(el).text().trim())
+                .map((_, el) => decodeHTML($(el).text().trim()))
                 .get()
                 .join(', ') || 'Chưa rõ';
 
         const artist = $container
             .find('a[href*="/nhom-dich/"]')
-            .map((_, el) => $(el).text().trim())
+            .map((_, el) => decodeHTML($(el).text().trim()))
             .get()
             .join(', ');
 
@@ -302,12 +303,14 @@ export class Parser {
         }
 
         // 5. Lấy mô tả (Lọc bỏ thẻ tiêu đề "Tóm tắt" và dòng trống)
-        const desc = $container
-            .find('div.mg-plot p')
-            .map((_, el) => $(el).text().trim())
-            .get()
-            .filter((text) => text.length > 0 && text !== 'Tóm tắt')
-            .join('\n\n');
+        const desc = decodeHTML(
+            $container
+                .find('div.mg-plot p')
+                .map((_, el) => $(el).text().trim())
+                .get()
+                .filter((text) => text.length > 0 && text !== 'Tóm tắt')
+                .join('\n\n')
+        );
 
         // 6. Tình trạng truyện ("Đã hoàn thành" / "Đang tiến hành")
         const status = $container.find('a[href*="filter%5Bstatus%5D"], a[href*="filter[status]"]').text().trim() || 'Đang tiến hành';
@@ -351,7 +354,7 @@ export class Parser {
             const id = href.split('/').filter(Boolean).pop() || '';
 
             // Lấy tên Chapter từ span.truncate hoặc fallback về text trong thẻ a
-            const name = $li.find('div.grow span.truncate').text().trim() || $li.find('a[href*="/truyen/"]').text().trim();
+            const name = decodeHTML($li.find('div.grow span.truncate').text().trim() || $li.find('a[href*="/truyen/"]').text().trim());
 
             // Parse chapNum từ tên (vd: "Chap 3" -> 3, "Chap 75.5" -> 75.5)
             let chapNum = totalChapters - idx;
@@ -419,7 +422,7 @@ export class Parser {
 
     parseTags(): TagSection[] {
         // 1. Thể loại truyện
-        const genreTags = genreTagsJson.map(({ label, id }) => App.createTag({ label, id }));
+        const genreTags = genreTagsJson.map(({ label, id }) => App.createTag({ label: decodeHTML(label), id }));
 
         return [
             App.createTagSection({

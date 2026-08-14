@@ -1,5 +1,6 @@
 import { Chapter, SourceManga, Tag, TagSection, PartialSourceManga } from '@paperback/types';
 import { CheerioAPI } from 'cheerio';
+import { decodeHTML } from 'entities';
 
 export class Parser {
     protected convertTime(timeAgo: string): Date {
@@ -31,7 +32,7 @@ export class Parser {
         const featuredItems: PartialSourceManga[] = [];
 
         $('#div_suggest .list_grid li').each((_: any, manga: any) => {
-            const title = $('.book_name > h3 > a', manga).text().trim();
+            const title = decodeHTML($('.book_name > h3 > a', manga).text().trim());
 
             // 1. Lấy Href & Extract Manga ID
             const id = $('.book_name > h3 > a', manga).attr('href')?.split('/').pop();
@@ -45,7 +46,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            const subtitle = $('.last_chapter > a', manga).text().trim();
+            const subtitle = decodeHTML($('.last_chapter > a', manga).text().trim());
 
             if (id && title) {
                 featuredItems.push(
@@ -66,7 +67,7 @@ export class Parser {
         const featuredItems: PartialSourceManga[] = [];
 
         $('#div_qq .list_grid li').each((_: any, manga: any) => {
-            const title = $('.book_name > h3 > a', manga).text().trim();
+            const title = decodeHTML($('.book_name > h3 > a', manga).text().trim());
 
             // 1. Lấy Href & Extract Manga ID
             const id = $('.book_name > h3 > a', manga).attr('href')?.split('/').pop();
@@ -80,7 +81,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            const subtitle = $('.last_chapter > a', manga).text().trim();
+            const subtitle = decodeHTML($('.last_chapter > a', manga).text().trim());
 
             if (id && title) {
                 featuredItems.push(
@@ -101,11 +102,11 @@ export class Parser {
         const tiles: PartialSourceManga[] = [];
 
         $('.list_grid li').each((_: any, manga: any) => {
-            const title = $('.book_name > h3 > a', manga).text().trim();
+            const title = decodeHTML($('.book_name > h3 > a', manga).text().trim());
             const id = $('.book_name > h3 > a', manga).attr('href')?.split('/').pop();
             let image = $('.book_avatar > a > img', manga).attr('src') ?? '';
             image = !image ? 'https://i.imgur.com/GYUxEX8.png' : image;
-            const subtitle = $('.last_chapter > a', manga).text().trim();
+            const subtitle = decodeHTML($('.last_chapter > a', manga).text().trim());
 
             tiles.push(
                 App.createPartialSourceManga({
@@ -124,7 +125,7 @@ export class Parser {
         const tags: Tag[] = [];
 
         $('a', '.list01').each((_: any, obj: any) => {
-            const label = $(obj).text().trim();
+            const label = decodeHTML($(obj).text().trim());
             const href = $(obj).attr('href'); // "/the-loai/action-26"
 
             // Tìm cụm số đứng sau dấu gạch ngang (-) ở cuối chuỗi
@@ -133,17 +134,19 @@ export class Parser {
             tags.push(App.createTag({ label, id }));
         });
 
-        const titles = [$('.book_other h1').text().trim()];
-        const author = $('ul.list-info > li.author > p.col-xs-9').text().trim();
-        const artist = $('ul.list-info > li.author > p.col-xs-9').text().trim();
+        const titles = [decodeHTML($('.book_other h1').text().trim())];
+        const author = decodeHTML($('ul.list-info > li.author > p.col-xs-9').text().trim());
+        const artist = decodeHTML($('ul.list-info > li.author > p.col-xs-9').text().trim());
         const image = $('.book_avatar > img').attr('src') ?? '';
 
-        // 🎯 CẢI TIẾN: Lấy từng thẻ <p>, trim khoảng trắng và nối bằng \n\n (hoặc \n)
-        const desc = $('div.detail-content > p')
-            .map((_, el) => $(el).text().trim())
-            .get()
-            .filter((text) => text.length > 0)
-            .join('\n\n');
+        // 🎯 CẢI TIẾN: Lấy từng thẻ <p>, trim khoảng trắng, decodeHTML và nối bằng \n\n
+        const desc = decodeHTML(
+            $('div.detail-content > p')
+                .map((_, el) => $(el).text().trim())
+                .get()
+                .filter((text) => text.length > 0)
+                .join('\n\n')
+        );
 
         const status = $('ul.list-info > li.status > p.col-xs-9').text().trim();
 
@@ -167,7 +170,7 @@ export class Parser {
         $('.works-chapter-list > .works-chapter-item').each((_: any, obj: any) => {
             const id = String($('.col-md-10.col-sm-10.col-xs-8 > a', obj).attr('href')?.split('/').pop());
             const time = $('.col-md-2.col-sm-2.col-xs-4', obj).text().trim();
-            const name = $('.col-md-10.col-sm-10.col-xs-8 > a', obj).text();
+            const name = decodeHTML($('.col-md-10.col-sm-10.col-xs-8 > a', obj).text());
             const chapNum = name.split(' ')[1];
             const timeFinal = this.convertTime(time);
 
@@ -224,7 +227,7 @@ export class Parser {
             // Clone node và remove span để chỉ lấy text thể loại
             const $clone = $el.clone();
             $clone.find('span').remove();
-            const label = $clone.text().trim();
+            const label = decodeHTML($clone.text().trim());
 
             if (id && label) {
                 arrayTags.push(App.createTag({ id, label }));
@@ -239,7 +242,7 @@ export class Parser {
             .siblings('.hidden_menu.book_tags')
             .find('.book_tags_content p a')
             .each((_, el) => {
-                const label = $(el).text().trim();
+                const label = decodeHTML($(el).text().trim());
                 const href = $(el).attr('href')?.trim();
 
                 // Lấy slug từ href (Ví dụ: "top-ngay" từ "https://truyenqqko.com/top-ngay")
@@ -261,7 +264,7 @@ export class Parser {
             $(selector)
                 .find('option')
                 .each((_, el) => {
-                    const label = $(el).text().trim();
+                    const label = decodeHTML($(el).text().trim());
                     const value = $(el).attr('value')?.trim();
 
                     // Loại bỏ các option mặc định "Tất cả" (value = "0" hoặc "-1")

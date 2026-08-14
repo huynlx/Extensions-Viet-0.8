@@ -34,9 +34,9 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -53,7 +53,6 @@ export class Parser {
             const item = $(element);
 
             // 1. Link & Manga ID
-            // Link trong HTML có dạng: https://sayhentai.cx/truyen-dan-ong-tren-doi-di-dau-het-roi.html
             const mangaLink = item.find('.post-title a, .item-thumb a').first();
             const href = mangaLink.attr('href') ?? '';
             const mangaId = href.split('/').pop()?.split('?')[0] ?? '';
@@ -73,7 +72,7 @@ export class Parser {
                 cover = `https:${cover}`;
             }
 
-            // 4. Subtitle (Tên chapter mới nhất, ví dụ: "Chapter 9")
+            // 4. Subtitle (Tên chapter mới nhất)
             const subtitle = item.find('.list-chapter .chapter-item .chapter a').first().text().trim() || undefined;
 
             if (title) {
@@ -82,7 +81,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: cover,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
                 addedMangaIds.add(mangaId);
@@ -95,7 +94,7 @@ export class Parser {
     parseHotSection($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        // Lấy div .slide-home.ahihi THỨ HAII (index = 1)
+        // Lấy div .slide-home.ahihi THỨ HAI (index = 1)
         const $secondSlide = $('.slide-home.ahihi').eq(1);
 
         $secondSlide.find('.item').each((_, element) => {
@@ -122,9 +121,9 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
-                        subtitle: lastChapter || undefined,
+                        subtitle: lastChapter ? decodeHTML(lastChapter) : undefined,
                     })
                 );
             }
@@ -136,15 +135,14 @@ export class Parser {
     parsePopularSection($: CheerioAPI): PartialSourceManga[] {
         const mangaList: PartialSourceManga[] = [];
 
-        // Lặp qua từng item trong danh sách Top 10
         $('li.popular-item-wrap').each((_, element) => {
             const $item = $(element);
 
-            // 1. Link & Manga ID từ href (VD: https://sayhentai.cx/truyen-sextoy-bluetooth.html -> truyen-sextoy-bluetooth)
+            // 1. Link & Manga ID
             const href = $item.find('h3.widget-title a').attr('href') || $item.find('.popular-img a').attr('href') || '';
             const mangaId = href.split('/').pop()?.split('?')[0] ?? '';
 
-            // 2. Title từ h3.widget-title a hoặc alt của thẻ <img>
+            // 2. Title
             const title =
                 $item.find('h3.widget-title a').text().trim() ||
                 $item
@@ -154,7 +152,7 @@ export class Parser {
                     .trim() ||
                 '';
 
-            // 3. Image URL từ thẻ <img>
+            // 3. Image URL
             const $img = $item.find('img').first();
             let image = $img.attr('data-src') || $img.attr('src') || '';
 
@@ -162,7 +160,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Subtitle: Lấy lượt xem hoặc thời gian cập nhật tùy nhu cầu (VD: "192,300 lượt xem")
+            // 4. Subtitle
             const views = $item.find('.chapter-item .chapter').text().trim();
             const postOn = $item.find('.chapter-item .post-on').text().trim();
             const subtitle = views || postOn || undefined;
@@ -171,9 +169,9 @@ export class Parser {
                 mangaList.push(
                     App.createPartialSourceManga({
                         mangaId: mangaId,
-                        title: title,
+                        title: decodeHTML(title),
                         image: image,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
             }
@@ -190,19 +188,17 @@ export class Parser {
         $('.page-item-detail').each((_, element) => {
             const $item = $(element);
 
-            // 1. Link & Title từ thẻ <a> trong .post-title h3
+            // 1. Link & Title
             const $titleLink = $item.find('.post-title h3 a').first();
             const title = $titleLink.text().trim() || $item.find('.item-thumb a').attr('title')?.trim() || '';
 
-            // 2. Manga ID từ href (Lấy toàn bộ filename/slug kèm .html)
-            // Ví dụ: https://sayhentai.cx/truyen-me-vo-van-la-tuyet-nhat.html -> truyen-me-vo-van-la-tuyet-nhat.html
+            // 2. Manga ID
             const href = $titleLink.attr('href') || $item.find('.item-thumb a').attr('href') || '';
             const mangaId = href.split('/').pop()?.split('?')[0] ?? '';
 
-            // Bỏ qua nếu không parse được ID hoặc đã tồn tại trong mảng
             if (!mangaId || addedMangaIds.has(mangaId)) return;
 
-            // 3. Image URL từ thẻ img trong .item-thumb
+            // 3. Image URL
             const $img = $item.find('.item-thumb img').first();
             let image = $img.attr('src') || $img.attr('data-src') || '';
 
@@ -210,7 +206,7 @@ export class Parser {
                 image = `https:${image}`;
             }
 
-            // 4. Chapter mới nhất / Subtitle từ .list-chapter .chapter a
+            // 4. Subtitle
             const subtitle = $item.find('.list-chapter .chapter-item .chapter a').first().text().trim() || undefined;
 
             if (title) {
@@ -219,7 +215,7 @@ export class Parser {
                         mangaId: mangaId,
                         title: decodeHTML(title),
                         image: image,
-                        subtitle: subtitle,
+                        subtitle: subtitle ? decodeHTML(subtitle) : undefined,
                     })
                 );
                 addedMangaIds.add(mangaId);
@@ -240,7 +236,7 @@ export class Parser {
             image = `https:${image}`;
         }
 
-        // Helper trích xuất văn bản từ .post-content_item dựa theo h5 heading
+        // Helper trích xuất văn bản
         const getInfoTextByHeading = (headingText: string): string => {
             let result = '';
             $('.post-content_item').each((_, el) => {
@@ -261,7 +257,7 @@ export class Parser {
         // 4. Lượt xem (View)
         const views = getInfoTextByHeading('View');
 
-        // 5. Rating (Đánh giá) - Selector cập nhật chuẩn theo HTML
+        // 5. Rating (Đánh giá)
         const ratingScore = $('.avg-rate').text().trim() || $('[property="ratingValue"]').text().trim();
         const ratingCount = $('.count-rate').text().trim() || $('[property="ratingCount"]').text().trim();
 
@@ -270,7 +266,7 @@ export class Parser {
             ratingStr = ratingCount ? `${ratingScore}/5 (${ratingCount} bình chọn)` : `${ratingScore}/5`;
         }
 
-        // 6. Cập nhật (Lấy từ thẻ <time> nằm trong khối .post-content_item)
+        // 6. Cập nhật
         const $timeEl = $('.post-content_item time').first();
         const lastUpdateStr = $timeEl.text().trim() || $timeEl.attr('datetime') || '';
 
@@ -282,7 +278,7 @@ export class Parser {
             const id = href.split('/genre/').pop()?.split('?')[0] ?? '';
 
             if (id && label) {
-                arrayTags.push(App.createTag({ id: id, label: label }));
+                arrayTags.push(App.createTag({ id: id, label: decodeHTML(label) }));
             }
         });
 
@@ -304,8 +300,8 @@ export class Parser {
                 titles: [decodeHTML(title)],
                 image: image,
                 status: 'Ongoing',
-                author: author,
-                artist: author,
+                author: decodeHTML(author),
+                artist: decodeHTML(author),
                 desc: decodeHTML(description),
                 tags: [App.createTagSection({ id: '0', label: 'Thể loại', tags: arrayTags })],
                 hentai: true,
@@ -314,45 +310,42 @@ export class Parser {
         });
     }
 
-    // Parse trực tiếp mảng JSON thành danh sách Chapter
+    // Parse danh sách Chapter
     parseChapterList($: CheerioAPI): Chapter[] {
         const chapters: Chapter[] = [];
 
-        // Chọn danh sách <li> chứa chapter trong .box-list-chapter
         $('.list-chapter.phihi ul.box-list-chapter li.wp-manga-chapter').each((index, element) => {
             const $li = $(element);
             const $a = $li.find('a').first();
 
             // 1. Lấy Href & Chapter ID
             const href = $a.attr('href') || '';
-            // Ví dụ href: "https://sayhentai.cx/truyen-dan-ong-tren-doi-di-dau-het-roi/chuong-9"
             const chapterId = href.replace(/^https?:\/\/[^\/]+\//, '').split('?')[0];
 
-            // 2. Tên chương (VD: "Chapter 9")
+            // 2. Tên chương
             const chapterName = $a.text().trim();
 
             // 3. Trích xuất số chương
             const chapNumMatch = chapterName.match(/(\d+(?:\.\d+)?)/);
             const chapNum = chapNumMatch?.[1] ? parseFloat(chapNumMatch[1]) : index + 1;
 
-            // 4. Lượt xem (VD: "457 views")
+            // 4. Lượt xem
             const viewsStr = $li.find('.number-view').text().trim();
 
-            // 5. Thời gian cập nhật (VD: "1 giờ trước", "2 ngày trước")
+            // 5. Thời gian cập nhật
             const relativeTimeStr = $li.find('.chapter-release-date i').text().trim();
             const time = parseDate(relativeTimeStr);
 
-            // Gom thời gian và lượt xem vào group (hoặc định dạng theo nhu cầu)
             const groupInfo = [relativeTimeStr, viewsStr].filter(Boolean).join(' • ');
 
             if (chapterId && chapterName) {
                 chapters.push(
                     App.createChapter({
                         id: chapterId,
-                        name: chapterName,
+                        name: decodeHTML(chapterName),
                         chapNum: chapNum,
                         langCode: '🇻🇳',
-                        group: groupInfo || undefined,
+                        group: groupInfo ? decodeHTML(groupInfo) : undefined,
                         time: time,
                     })
                 );
@@ -366,11 +359,9 @@ export class Parser {
     parseChapterDetails($: CheerioAPI): string[] {
         const pages: string[] = [];
 
-        // Chọn tất cả thẻ <img> nằm trong khối đọc truyện #chapter_content
         $('#chapter_content .page-break img, .reading-content img.chapter-img').each((_, element) => {
             const $img = $(element);
 
-            // Trích xuất link ảnh từ src hoặc data-src (phòng trường hợp lazy load)
             let pageUrl = $img.attr('src') || $img.attr('data-src') || $img.attr('data-original') || '';
 
             if (pageUrl.startsWith('//')) {
@@ -390,29 +381,23 @@ export class Parser {
     // Parse danh sách thể loại (Tags)
     parseTags($: CheerioAPI): TagSection[] {
         const genreTags: Tag[] = [];
-        const sortTags: Tag[] = [];
 
-        // 1. Thể loại: Lấy danh sách từ ul.genres-grid
         $('ul.genres-grid a.genre-card').each((_, element) => {
             const $item = $(element);
             const name = $item.find('.name').text().trim();
             const href = $item.attr('href') || '';
 
-            // Trích xuất số lượng
             const countRaw = $item.find('.count, .quantity, .total, span:not(.name)').text().trim();
-            const count = countRaw.replace(/\D/g, ''); // Chỉ lấy các chữ số
+            const count = countRaw.replace(/\D/g, '');
 
-            // Định dạng lại label: "Tên thể loại (Số lượng)" hoặc giữ nguyên nếu không có số lượng
             const label = count ? `${name} (${countRaw})` : name;
-
-            // Trích xuất slug từ href (VD: https://sayhentai.cx/genre/nguc-lon -> nguc-lon)
             const slug = href.split('/genre/').pop()?.split('/')[0]?.split('?')[0];
 
             if (slug && name) {
                 genreTags.push(
                     App.createTag({
                         id: slug,
-                        label: label,
+                        label: decodeHTML(label),
                     })
                 );
             }
