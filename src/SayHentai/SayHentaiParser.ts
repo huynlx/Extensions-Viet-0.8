@@ -355,6 +355,39 @@ export class Parser {
         return chapters;
     }
 
+    parseChapterListFromSelect($: CheerioAPI, params: any): Chapter[] {
+        const chapters: Chapter[] = [];
+
+        $('.selectpicker.single-chapter-select option').each((index, element) => {
+            const $opt = $(element);
+
+            // 1. Lấy Href từ thuộc tính data-redirect & lấy slug đằng sau làm Chapter ID
+            const redirectUrl = $opt.attr('data-redirect') || '';
+            const chapterId = redirectUrl ? redirectUrl.replace(/^https?:\/\/[^\/]+\//, '').split('?')[0] : '';
+
+            // 2. Tên chương
+            const chapterName = $opt.text().trim();
+
+            // 3. Trích xuất số chương
+            const chapNumMatch = chapterName.match(/(\d+(?:\.\d+)?)/);
+            const chapNum = chapNumMatch?.[1] ? parseFloat(chapNumMatch[1]) : index + 1;
+
+            if (chapterId && chapterName) {
+                chapters.push(
+                    App.createChapter({
+                        id: chapterId,
+                        name: decodeHTML(chapterName),
+                        chapNum: chapNum,
+                        langCode: '🇻🇳',
+                        ...params,
+                    })
+                );
+            }
+        });
+
+        return chapters;
+    }
+
     // Parse danh sách trang ảnh trong chapter
     parseChapterDetails($: CheerioAPI): string[] {
         const pages: string[] = [];

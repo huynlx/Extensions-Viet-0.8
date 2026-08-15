@@ -22,11 +22,12 @@ import {
 import { CheerioAPI } from 'cheerio';
 import { Parser } from './SayHentaiParser';
 import { domainSettings, getDomain, resetSettings } from './SayHentaiSetting';
+import { decodeHTML } from 'entities';
 
 const DOMAIN = 'https://sayhentai.cx';
 
 export const SayHentaiInfo: SourceInfo = {
-    version: '1.0.0',
+    version: '1.0.2',
     name: 'SayHentai',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
@@ -255,7 +256,19 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
         }
 
         const $ = await this.fetchMangaPageCached(mangaId);
-        const chapters = this.parser.parseChapterList($);
+        const firstLink = $('#init-links a').first().attr('href');
+        const $firstChapter = firstLink ? await this.DOMHTML(firstLink) : null;
+
+        let chapters;
+
+        if ($firstChapter) {
+            const translator = $('.post-content_item:has(.summary-heading:contains("Nhóm dịch")) .summary-content a').text().trim();
+            chapters = this.parser.parseChapterListFromSelect($firstChapter, {
+                group: decodeHTML(translator),
+            });
+        } else {
+            chapters = this.parser.parseChapterList($);
+        }
 
         this.cache.set(cacheKey, { data: chapters, timestamp: now });
         return chapters;
