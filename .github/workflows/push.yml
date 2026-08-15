@@ -58,7 +58,7 @@ jobs:
               run: |
                   find bundles -name "index.html" -exec sed -i 's|truyenviet-0.8|TruyenViet-0.8|g' {} \;
 
-            # Bước 9: Đẩy toàn bộ thư mục 'bundles' đã cập nhật trở lại nhánh 'gh-pages' để publish lên GitHub Pages
+            # Bước 9: Đẩy toàn bộ thư mục 'bundles' đã cập nhật ở bước 7 trở lại nhánh 'gh-pages' để publish lên GitHub Pages
             - name: Deploy to GitHub Pages
               uses: JamesIves/github-pages-deploy-action@v4.5.0
               with:
