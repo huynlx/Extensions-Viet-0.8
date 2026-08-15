@@ -404,7 +404,7 @@ export class Parser {
                 chapters.push(
                     App.createChapter({
                         id: chapterId,
-                        name: `Phần ${chapNum}`, // Đổi tên chapter từ "Trang X" thành "Phần X" chuyên nghiệp hơn
+                        name: `Trang ${chapNum}`, // Đổi tên chapter từ "Trang X" thành "Phần X" chuyên nghiệp hơn
                         chapNum: chapNum,
                         time: new Date(),
                     })
@@ -416,7 +416,7 @@ export class Parser {
             chapters.push(
                 App.createChapter({
                     id: mainSlug,
-                    name: 'Phần 1',
+                    name: 'Trang 1',
                     chapNum: 1,
                     time: new Date(),
                 })
