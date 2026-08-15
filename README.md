@@ -11,12 +11,16 @@
   <strong>Source extensions đọc truyện tiếng Việt cho Paperback 0.8</strong>
 </p>
 
+<p align="center">
+  <strong>Maintainer:</strong> <a href="https://github.com/huynlx">https://github.com/huynlx</a>
+</p>
+
 ## 📥 Add to Paperback
 
-| Phiên bản | Liên kết                                                                  |
-| --------- | ------------------------------------------------------------------------- |
-| develop   | [Add to Paperback](https://huynlx.github.io/Extensions-Viet-0.8/develop/) |
-| 18+       | [Add to Paperback](https://huynlx.github.io/Extensions-Viet-0.8/nsfw/)    |
+| Phiên bản | Liên kết                                                                  | Maintainer                          |
+| --------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| develop   | [Add to Paperback](https://huynlx.github.io/Extensions-Viet-0.8/develop/) | [huynlx](https://github.com/huynlx) |
+| 18+       | [Add to Paperback](https://huynlx.github.io/Extensions-Viet-0.8/nsfw/)    | [huynlx](https://github.com/huynlx) |
 
 > Source URL: https://huynlx.github.io/Extensions-Viet-0.8/
 
