@@ -1,0 +1,40 @@
+name: Clean up published sources for deleted branch # Tên của workflow hiển thị trên GitHub Actions
+
+on:
+    delete:
+        branches:
+            - '**' # Kích hoạt khi có bất kỳ nhánh nào bị xóa
+            - '!main' # Ngoại trừ nhánh 'main' (bảo vệ nhánh chính khỏi việc kích hoạt nhầm)
+
+jobs:
+    delete:
+        # Chỉ chạy công việc này nếu đối tượng bị xóa thực sự là 'branch' (bỏ qua nếu là tag)
+        if: github.event.ref_type == 'branch'
+        runs-on: ubuntu-latest # Chạy trên máy chủ ảo hệ điều hành Ubuntu mới nhất
+        steps:
+            # Bước 1: In ra thông báo tên nhánh vừa bị xóa để theo dõi trong lịch sử log
+            - name: Clean up
+              run: |
+                  echo "Clean up for branch ${{ github.event.ref }}"
+
+            # Bước 2: Tải mã nguồn của repository xuống môi trường chạy
+            - name: Checkout Branch
+              uses: actions/checkout@v4.1.2
+
+            # Bước 3: Tải nội dung của nhánh 'gh-pages' (nơi lưu các bản build/trang web) vào thư mục 'bundles'
+            - name: Checkout existing bundles
+              uses: actions/checkout@v4.1.2
+              continue-on-error: true # Bỏ qua lỗi nếu nhánh 'gh-pages' chưa tồn tại
+              with:
+                  ref: gh-pages
+                  path: bundles
+
+            # Bước 4: Xóa thư mục con tương ứng với tên nhánh vừa bị xóa bên trong thư mục 'bundles'
+            - run: rm -rf bundles/${{ github.event.ref }}
+
+            # Bước 5: Đẩy thư mục 'bundles' đã được dọn dẹp trở lại nhánh 'gh-pages' để cập nhật GitHub Pages
+            - name: Deploy to GitHub Pages
+              uses: JamesIves/github-pages-deploy-action@4.6.1
+              with:
+                  branch: gh-pages
+                  folder: bundles

@@ -1,0 +1,66 @@
+name: Bundle and Publish Sources # Tên của workflow hiển thị trên GitHub Actions
+
+on:
+    push:
+        branches:
+            - '**' # Kích hoạt workflow này khi có bất kỳ push nào lên bất kỳ nhánh nào
+            - '!main' # Ngoại trừ nhánh 'main' (không chạy workflow này cho nhánh main)
+
+jobs:
+    build:
+        name: Bundle and Publish Sources
+        runs-on: ubuntu-latest # Chạy trên máy chủ ảo hệ điều hành Ubuntu mới nhất
+
+        # Khai báo quyền hạn cho phép GitHub Actions ghi dữ liệu (đẩy code/thay đổi) vào repository
+        permissions:
+            contents: write
+
+        strategy:
+            matrix:
+                node-version: [20.x] # Cấu hình phiên bản Node.js sử dụng là phiên bản 20
+
+        steps:
+            # Bước 1: Tải mã nguồn của nhánh hiện tại đang được push xuống môi trường chạy
+            - name: Checkout Branch
+              uses: actions/checkout@v4.1.2
+
+            # Bước 2: Thiết lập môi trường Node.js với phiên bản đã định nghĩa trong ma trận
+            - name: Setup Node.js environment
+              uses: actions/setup-node@v4.0.2
+              with:
+                  node-version: ${{ matrix.node-version }}
+
+            # Bước 3: Lấy tên nhánh hiện tại đang đẩy code và lưu vào biến đầu ra (output)
+            - name: Extract branch name
+              shell: bash
+              run: echo "branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+              id: extract_branch # Đặt ID để các bước sau có thể gọi lại biến này
+
+            # Bước 4: Tải nội dung từ nhánh 'gh-pages' (nơi chứa các trang web đã xuất bản) vào thư mục 'bundles'
+            - name: Checkout existing bundles
+              uses: actions/checkout@v4.1.2
+              continue-on-error: true # Bỏ qua lỗi nếu nhánh 'gh-pages' chưa tồn tại (chạy lần đầu)
+              with:
+                  ref: gh-pages
+                  path: bundles
+
+            # Bước 5: Cài đặt các gói phụ thuộc (dependencies) của dự án Node.js
+            - run: npm install
+
+            # Bước 6: Kiểm tra phiên bản của công cụ 'paperback' (thường dùng cho việc đóng gói extension/plugin đọc truyện)
+            - run: npx paperback --version
+
+            # Bước 7: Chạy lệnh đóng gói (bundle) và lưu kết quả vào thư mục con tương ứng với tên nhánh hiện tại
+            - run: npm run bundle -- --folder=${{ steps.extract_branch.outputs.branch }}
+
+            # Bước 8: Sửa lỗi viết hoa/thường trong đường dẫn URL bên trong các tệp index.html
+            - name: Fix URL case
+              run: |
+                  find bundles -name "index.html" -exec sed -i 's|truyenviet-0.8|TruyenViet-0.8|g' {} \;
+
+            # Bước 9: Đẩy toàn bộ thư mục 'bundles' đã cập nhật ở bước 7 trở lại nhánh 'gh-pages' để publish lên GitHub Pages
+            - name: Deploy to GitHub Pages
+              uses: JamesIves/github-pages-deploy-action@v4.5.0
+              with:
+                  branch: gh-pages
+                  folder: bundles
