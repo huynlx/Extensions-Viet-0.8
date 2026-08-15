@@ -7,12 +7,9 @@
   "private": true,
   "baseURL": "https://huynlx.github.io/Extensions-Viet-0.8/",
   "scripts": {
-    "base-url": "node scripts/update-base-url.js",
     "bundle": "npx paperback bundle",
     "serve": "npx paperback serve",
-    "test": "npx paperback test",
-    "predeploy": "node -e \"process.env.GH_PAGES='true'; require('./scripts/update-base-url.js')\" && npx paperback bundle",
-    "deploy": "gh-pages -d bundles"
+    "test": "npx paperback test"
   },
   "devDependencies": {
     "@types/cheerio": "0.22.21",
