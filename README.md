@@ -31,11 +31,10 @@
 
 ## 📥 Add to Paperback
 
-| Phiên bản | Ngôn ngữ | Liên kết | Maintainer |
-| --------- | -------- | -------- | ---------- |
-| Stable    | 🇻🇳      | <a href="https://paperback.moe/add?url=https://huynlx.github.io/Extensions-Viet-0.8/" target="_blank" rel="noopener noreferrer">Add to Paperback</a> | <a href="https://github.com/huynlx" target="_blank" rel="noopener noreferrer">huynlx</a> |
-| develop   | 🇻🇳      | <a href="https://huynlx.github.io/Extensions-Viet-0.8/develop/" target="_blank" rel="noopener noreferrer">Add to Paperback</a> | <a href="https://github.com/huynlx" target="_blank" rel="noopener noreferrer">huynlx</a> |
-| 18+       | 🇻🇳      | <a href="https://huynlx.github.io/Extensions-Viet-0.8/nsfw/" target="_blank" rel="noopener noreferrer">Add to Paperback</a> | <a href="https://github.com/huynlx" target="_blank" rel="noopener noreferrer">huynlx</a> |
+| Phiên bản | Ngôn ngữ | Liên kết                                                                                                                       | Maintainer                                                                               |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| develop   | 🇻🇳       | <a href="https://huynlx.github.io/Extensions-Viet-0.8/develop/" target="_blank" rel="noopener noreferrer">Add to Paperback</a> | <a href="https://github.com/huynlx" target="_blank" rel="noopener noreferrer">huynlx</a> |
+| 18+       | 🇻🇳       | <a href="https://huynlx.github.io/Extensions-Viet-0.8/nsfw/" target="_blank" rel="noopener noreferrer">Add to Paperback</a>    | <a href="https://github.com/huynlx" target="_blank" rel="noopener noreferrer">huynlx</a> |
 
 > Source URL: https://huynlx.github.io/Extensions-Viet-0.8/
 
@@ -59,39 +58,39 @@ Mỗi source được xây dựng riêng với parser, homepage, tìm kiếm, th
 
 ## 🚀 Tính năng nổi bật
 
-| Tính năng | Mô tả |
-| --- | --- |
-| 📚 Nhiều nguồn | Hỗ trợ nhiều website truyện tiếng Việt khác nhau |
-| 🔎 Tìm kiếm | Tìm truyện nhanh trong từng source riêng |
-| 🏠 Homepage | Hiển thị nội dung nổi bật và cập nhật mới |
-| 📖 Chapter detail | Hiển thị chi tiết truyện, chapter, ảnh bìa |
-| ⚙️ Dễ mở rộng | Cấu trúc source rõ ràng, dễ phát triển thêm |
-| 🌐 Multi-env | Hỗ trợ local và GitHub Pages riêng biệt |
+| Tính năng         | Mô tả                                            |
+| ----------------- | ------------------------------------------------ |
+| 📚 Nhiều nguồn    | Hỗ trợ nhiều website truyện tiếng Việt khác nhau |
+| 🔎 Tìm kiếm       | Tìm truyện nhanh trong từng source riêng         |
+| 🏠 Homepage       | Hiển thị nội dung nổi bật và cập nhật mới        |
+| 📖 Chapter detail | Hiển thị chi tiết truyện, chapter, ảnh bìa       |
+| ⚙️ Dễ mở rộng     | Cấu trúc source rõ ràng, dễ phát triển thêm      |
+| 🌐 Multi-env      | Hỗ trợ local và GitHub Pages riêng biệt          |
 
 ---
 
 ## 📚 Các source đang hỗ trợ
 
-| Source | Website | Trạng thái |
-| --- | --- | --- |
-| BuonDua | `buondua.com` | ✅ Hoạt động |
-| CuuTruyen | `cuutruyen.moe` | ✅ Hoạt động |
-| FoxTruyen | `foxtruyen2.com` | ✅ Hoạt động |
-| HentaiCube | `hentaicube.xyz` | ✅ Hoạt động |
-| HentaiVN | `hentaivn.com` | ✅ Hoạt động |
-| HentaiVNX | `hentaivnx.com` | ✅ Hoạt động |
-| HotGirl | `hotgirl.biz` | ✅ Hoạt động |
-| MauLon | `maulon.com` | ✅ Hoạt động |
-| MiMiHentai | `mimihentai.com` | ✅ Hoạt động |
-| Misskon | `misskon.com` | ✅ Hoạt động |
-| NetTruyen | `nettruyen.*` | ⚠️ Có thể giới hạn |
-| NhatTruyen | `nhattruyen.*` | ⚠️ Có thể giới hạn |
-| NudeBird | `nudebird.com` | ✅ Hoạt động |
-| SayHentai | `sayhentai.com` | ✅ Hoạt động |
-| TComic | `tcomic.com` | ✅ Hoạt động |
-| TruyenQQ | `truyenqq.com` | ✅ Hoạt động |
-| ViHentai | `vihentai.com` | ✅ Hoạt động |
-| VinaHentai | `vinahentai.com` | ✅ Hoạt động |
+| Source     | Website          | Trạng thái         |
+| ---------- | ---------------- | ------------------ |
+| BuonDua    | `buondua.com`    | ✅ Hoạt động       |
+| CuuTruyen  | `cuutruyen.moe`  | ✅ Hoạt động       |
+| FoxTruyen  | `foxtruyen2.com` | ✅ Hoạt động       |
+| HentaiCube | `hentaicube.xyz` | ✅ Hoạt động       |
+| HentaiVN   | `hentaivn.com`   | ✅ Hoạt động       |
+| HentaiVNX  | `hentaivnx.com`  | ✅ Hoạt động       |
+| HotGirl    | `hotgirl.biz`    | ✅ Hoạt động       |
+| MauLon     | `maulon.com`     | ✅ Hoạt động       |
+| MiMiHentai | `mimihentai.com` | ✅ Hoạt động       |
+| Misskon    | `misskon.com`    | ✅ Hoạt động       |
+| NetTruyen  | `nettruyen.*`    | ⚠️ Có thể giới hạn |
+| NhatTruyen | `nhattruyen.*`   | ⚠️ Có thể giới hạn |
+| NudeBird   | `nudebird.com`   | ✅ Hoạt động       |
+| SayHentai  | `sayhentai.com`  | ✅ Hoạt động       |
+| TComic     | `tcomic.com`     | ✅ Hoạt động       |
+| TruyenQQ   | `truyenqq.com`   | ✅ Hoạt động       |
+| ViHentai   | `vihentai.com`   | ✅ Hoạt động       |
+| VinaHentai | `vinahentai.com` | ✅ Hoạt động       |
 
 > Một số source có thể phụ thuộc vào thay đổi bên website gốc, do đó cần theo dõi cập nhật thường xuyên.
 
@@ -128,14 +127,14 @@ npm run bundle
 
 ## 🧩 Script có sẵn
 
-| Lệnh | Mô tả |
-| --- | --- |
-| `npm run base-url` | Cập nhật `baseURL` theo môi trường |
-| `npm run serve` | Chạy local dev server |
-| `npm run bundle` | Build source bundle cho Paperback |
-| `npm run test` | Chạy kiểm thử |
-| `npm run predeploy` | Chuẩn bị build cho GitHub Pages |
-| `npm run deploy` | Deploy lên GitHub Pages |
+| Lệnh                | Mô tả                              |
+| ------------------- | ---------------------------------- |
+| `npm run base-url`  | Cập nhật `baseURL` theo môi trường |
+| `npm run serve`     | Chạy local dev server              |
+| `npm run bundle`    | Build source bundle cho Paperback  |
+| `npm run test`      | Chạy kiểm thử                      |
+| `npm run predeploy` | Chuẩn bị build cho GitHub Pages    |
+| `npm run deploy`    | Deploy lên GitHub Pages            |
 
 ---
 
