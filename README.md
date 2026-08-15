@@ -11,6 +11,15 @@
   <strong>Source extensions đọc truyện tiếng Việt cho Paperback 0.8</strong>
 </p>
 
+## 📥 Add to Paperback
+
+| Phiên bản | Liên kết                                                                  |
+| --------- | ------------------------------------------------------------------------- |
+| develop   | [Add to Paperback](https://huynlx.github.io/Extensions-Viet-0.8/develop/) |
+| 18+       | [Add to Paperback](https://huynlx.github.io/Extensions-Viet-0.8/nsfw/)    |
+
+> Source URL: https://huynlx.github.io/Extensions-Viet-0.8/
+
 ---
 
 ## ✨ Tổng quan
