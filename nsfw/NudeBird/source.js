@@ -1527,7 +1527,7 @@ ${decodeHTML(rawExcerpt).replace(/\s+/g, " ").trim()}`);
           chapters.push(
             App.createChapter({
               id: chapterId,
-              name: `Ph\u1EA7n ${chapNum}`,
+              name: `Trang ${chapNum}`,
               // Đổi tên chapter từ "Trang X" thành "Phần X" chuyên nghiệp hơn
               chapNum,
               time: /* @__PURE__ */ new Date()
@@ -1539,7 +1539,7 @@ ${decodeHTML(rawExcerpt).replace(/\s+/g, " ").trim()}`);
         chapters.push(
           App.createChapter({
             id: mainSlug,
-            name: "Ph\u1EA7n 1",
+            name: "Trang 1",
             chapNum: 1,
             time: /* @__PURE__ */ new Date()
           })
