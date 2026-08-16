@@ -1810,12 +1810,12 @@ var _Sources = (() => {
         return cached.data;
       }
       const $ = await this.fetchMangaPageCached(mangaId);
-      const firstLink = $("#init-links a").first().attr("href");
-      const $firstChapter = firstLink ? await this.DOMHTML(firstLink) : null;
+      const lastLink = $("#init-links a").last().attr("href");
+      const $lastChapter = lastLink ? await this.DOMHTML(lastLink) : null;
       let chapters;
-      if ($firstChapter) {
+      if ($lastChapter) {
         const translator = $('.post-content_item:has(.summary-heading:contains("Nh\xF3m d\u1ECBch")) .summary-content a').text().trim();
-        chapters = this.parser.parseChapterListFromSelect($firstChapter, {
+        chapters = this.parser.parseChapterListFromSelect($lastChapter, {
           group: decodeHTML(translator)
         });
       } else {
