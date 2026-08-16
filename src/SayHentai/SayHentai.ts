@@ -256,14 +256,14 @@ export class SayHentai implements SearchResultsProviding, MangaProviding, Chapte
         }
 
         const $ = await this.fetchMangaPageCached(mangaId);
-        const firstLink = $('#init-links a').first().attr('href');
-        const $firstChapter = firstLink ? await this.DOMHTML(firstLink) : null;
+        const lastLink = $('#init-links a').last().attr('href');
+        const $lastChapter = lastLink ? await this.DOMHTML(lastLink) : null;
 
         let chapters;
 
-        if ($firstChapter) {
+        if ($lastChapter) {
             const translator = $('.post-content_item:has(.summary-heading:contains("Nhóm dịch")) .summary-content a').text().trim();
-            chapters = this.parser.parseChapterListFromSelect($firstChapter, {
+            chapters = this.parser.parseChapterListFromSelect($lastChapter, {
                 group: decodeHTML(translator),
             });
         } else {
