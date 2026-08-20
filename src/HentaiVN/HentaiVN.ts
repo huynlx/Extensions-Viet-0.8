@@ -26,7 +26,7 @@ import { domainSettings, getDomain, resetSettings } from './HentaiVNSetting';
 const DOMAIN = 'https://hentaivnreal.com';
 
 export const HentaiVNInfo: SourceInfo = {
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'HentaiVN',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
@@ -82,6 +82,7 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
                     ...(request.headers ?? {}),
                     referer: `${baseUrl}/`,
                     'user-agent': await this.requestManager.getDefaultUserAgent(),
+                    'sec-fetch-site': 'cross-site',
                 };
                 return request;
             },
