@@ -1598,10 +1598,18 @@ ${rawDesc}`);
         interceptor: {
           interceptRequest: async (request) => {
             const baseUrl = await this.getBaseUrl();
+            const baseHost = new URL(baseUrl).host;
+            const requestHost = new URL(request.url).host;
+            const isCrossSite = requestHost !== baseHost;
             request.headers = {
               ...request.headers ?? {},
               referer: `${baseUrl}/`,
-              "user-agent": await this.requestManager.getDefaultUserAgent()
+              origin: `${baseUrl}`,
+              "user-agent": await this.requestManager.getDefaultUserAgent(),
+              // Tự động phân loại fetch-site dựa vào domain
+              "sec-fetch-site": isCrossSite ? "cross-site" : "same-origin",
+              "sec-fetch-mode": isCrossSite ? "no-cors" : "navigate",
+              "sec-fetch-dest": request.url.match(/\.(webp|jpg|jpeg|png|gif)$/i) ? "image" : "document"
             };
             return request;
           },
