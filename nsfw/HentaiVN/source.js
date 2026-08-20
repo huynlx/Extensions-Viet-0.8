@@ -1555,7 +1555,7 @@ ${rawDesc}`);
   // src/HentaiVN/HentaiVN.ts
   var DOMAIN = "https://hentaivnreal.com";
   var HentaiVNInfo = {
-    version: "1.0.0",
+    version: "1.0.1",
     name: "HentaiVN",
     icon: "icon.png",
     author: "L\xEA \u0110\u1EA1i Thi\u1EC7n Nh\xE2n",
@@ -1598,18 +1598,11 @@ ${rawDesc}`);
         interceptor: {
           interceptRequest: async (request) => {
             const baseUrl = await this.getBaseUrl();
-            const baseHost = new URL(baseUrl).host;
-            const requestHost = new URL(request.url).host;
-            const isCrossSite = requestHost !== baseHost;
             request.headers = {
               ...request.headers ?? {},
               referer: `${baseUrl}/`,
-              origin: `${baseUrl}`,
               "user-agent": await this.requestManager.getDefaultUserAgent(),
-              // Tự động phân loại fetch-site dựa vào domain
-              "sec-fetch-site": isCrossSite ? "cross-site" : "same-origin",
-              "sec-fetch-mode": isCrossSite ? "no-cors" : "navigate",
-              "sec-fetch-dest": request.url.match(/\.(webp|jpg|jpeg|png|gif)$/i) ? "image" : "document"
+              "sec-fetch-site": "cross-site"
             };
             return request;
           },
