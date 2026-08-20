@@ -78,21 +78,10 @@ export class HentaiVN implements SearchResultsProviding, MangaProviding, Chapter
         interceptor: {
             interceptRequest: async (request: Request): Promise<Request> => {
                 const baseUrl = await this.getBaseUrl();
-                const baseHost = new URL(baseUrl).host;
-                const requestHost = new URL(request.url).host;
-
-                // Kiểm tra xem request gọi đến domain chính hay CDN khác domain
-                const isCrossSite = requestHost !== baseHost;
-
                 request.headers = {
                     ...(request.headers ?? {}),
                     referer: `${baseUrl}/`,
-                    origin: `${baseUrl}`,
                     'user-agent': await this.requestManager.getDefaultUserAgent(),
-                    // Tự động phân loại fetch-site dựa vào domain
-                    'sec-fetch-site': isCrossSite ? 'cross-site' : 'same-origin',
-                    'sec-fetch-mode': isCrossSite ? 'no-cors' : 'navigate',
-                    'sec-fetch-dest': request.url.match(/\.(webp|jpg|jpeg|png|gif)$/i) ? 'image' : 'document',
                 };
                 return request;
             },
