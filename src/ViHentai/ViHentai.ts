@@ -26,7 +26,7 @@ import { domainSettings, getDomain, resetSettings, getPassword, passwordSettings
 const DEFAULT_DOMAIN = 'https://vi-hentai.pro';
 
 export const ViHentaiInfo: SourceInfo = {
-    version: '1.0.3',
+    version: '1.0.4',
     name: 'ViHentai',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
@@ -414,7 +414,7 @@ export class ViHentai implements SearchResultsProviding, MangaProviding, Chapter
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const cacheKey = `chapter-details-${chapterId}`;
+        const cacheKey = `chapter-details-${mangaId}-${chapterId}`;
         const now = Date.now();
         const cached = this.cache.get(cacheKey);
 
