@@ -2481,7 +2481,7 @@ var _Sources = (() => {
   // src/ViHentai/ViHentai.ts
   var DEFAULT_DOMAIN = "https://vi-hentai.pro";
   var ViHentaiInfo = {
-    version: "1.0.3",
+    version: "1.0.4",
     name: "ViHentai",
     icon: "icon.png",
     author: "L\xEA \u0110\u1EA1i Thi\u1EC7n Nh\xE2n",
@@ -2801,7 +2801,7 @@ var _Sources = (() => {
       return chapters;
     }
     async getChapterDetails(mangaId, chapterId) {
-      const cacheKey = `chapter-details-${chapterId}`;
+      const cacheKey = `chapter-details-${mangaId}-${chapterId}`;
       const now = Date.now();
       const cached = this.cache.get(cacheKey);
       let pages;
