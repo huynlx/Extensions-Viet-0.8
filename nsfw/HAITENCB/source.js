@@ -1541,7 +1541,7 @@ var _Sources = (() => {
         const h3Text = $item.find("h3").text();
         const label = h3Text ? h3Text.trim() : $item.attr("title")?.trim() ?? "";
         const href = $item.attr("href") || "";
-        const slug = href.split("/theloai/").pop()?.replace(/\/$/, "") ?? "";
+        const slug = href.split("/the-loai/").pop()?.replace(/\/$/, "") ?? "";
         if (slug && label) {
           genreTags.push(
             App.createTag({
