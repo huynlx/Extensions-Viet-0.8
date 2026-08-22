@@ -27,7 +27,7 @@ const DOMAIN = 'https://2tencb.pro';
 
 export const HAITENCBInfo: SourceInfo = {
     version: '1.0.0',
-    name: 'HAITENCB',
+    name: '2tencb',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
