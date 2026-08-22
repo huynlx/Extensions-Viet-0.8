@@ -31,7 +31,7 @@ export const HAITENCBInfo: SourceInfo = {
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
-    description: 'Extension that pulls manga from HAITENCB.',
+    description: 'Extension that pulls manga from 2tencb.',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
@@ -358,7 +358,7 @@ export class HAITENCB implements SearchResultsProviding, MangaProviding, Chapter
                 } else if (hasKeyword) {
                     params.push(`genre[]=${tagId}`);
                 } else {
-                    basePath = `/theloai/${tagId}`;
+                    basePath = `/the-loai/${tagId}`;
                 }
             }
         }
