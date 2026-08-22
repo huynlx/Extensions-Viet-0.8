@@ -1605,7 +1605,7 @@ var _Sources = (() => {
     icon: "icon.png",
     author: "L\xEA \u0110\u1EA1i Thi\u1EC7n Nh\xE2n",
     authorWebsite: "https://github.com/huynlx/",
-    description: "Extension that pulls manga from HAITENCB.",
+    description: "Extension that pulls manga from 2tencb.",
     contentRating: import_types.ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
@@ -1862,7 +1862,7 @@ var _Sources = (() => {
           } else if (hasKeyword) {
             params.push(`genre[]=${tagId}`);
           } else {
-            basePath = `/theloai/${tagId}`;
+            basePath = `/the-loai/${tagId}`;
           }
         }
       }
