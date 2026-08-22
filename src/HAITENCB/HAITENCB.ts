@@ -27,11 +27,11 @@ const DOMAIN = 'https://2tencb.pro';
 
 export const HAITENCBInfo: SourceInfo = {
     version: '1.0.0',
-    name: '2tencb',
+    name: '2TENCB',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com/huynlx/',
-    description: 'Extension that pulls manga from 2tencb.',
+    description: 'Extension that pulls manga from 2TENCB.',
     contentRating: ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
