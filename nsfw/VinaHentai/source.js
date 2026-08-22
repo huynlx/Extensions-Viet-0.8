@@ -1590,7 +1590,7 @@ var _Sources = (() => {
     version: "1.0.0",
     name: "VinaHentai",
     icon: "icon.png",
-    author: "Paperback",
+    author: "L\xEA \u0110\u1EA1i Thi\u1EC7n Nh\xE2n",
     authorWebsite: "https://github.com",
     description: "Extension \u0111\u1ECDc truy\u1EC7n t\u1EEB VinaHentai.",
     contentRating: import_types.ContentRating.ADULT,
