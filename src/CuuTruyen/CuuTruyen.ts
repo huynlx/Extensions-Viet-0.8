@@ -26,7 +26,7 @@ import { domainSettings, getDomain, resetSettings, getPassword, passwordSettings
 const DEFAULT_DOMAIN = 'https://cuutruyen.moe';
 
 export const CuuTruyenInfo: SourceInfo = {
-    version: '1.0.2',
+    version: '1.0.3',
     name: 'CuuTruyen',
     icon: 'icon.png',
     author: 'Lê Đại Thiện Nhân',
@@ -414,7 +414,7 @@ export class CuuTruyen implements SearchResultsProviding, MangaProviding, Chapte
     }
 
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const cacheKey = `chapter-details-${chapterId}`;
+        const cacheKey = `chapter-details-${mangaId}-${chapterId}`;
         const now = Date.now();
         const cached = this.cache.get(cacheKey);
 
