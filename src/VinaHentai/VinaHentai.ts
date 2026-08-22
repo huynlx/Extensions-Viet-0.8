@@ -29,7 +29,7 @@ export const VinaHentaiInfo: SourceInfo = {
     version: '1.0.0',
     name: 'VinaHentai',
     icon: 'icon.png',
-    author: 'Paperback',
+    author: 'Lê Đại Thiện Nhân',
     authorWebsite: 'https://github.com',
     description: 'Extension đọc truyện từ VinaHentai.',
     contentRating: ContentRating.ADULT,
