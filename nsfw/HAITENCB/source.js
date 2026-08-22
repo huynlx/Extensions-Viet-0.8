@@ -1601,11 +1601,11 @@ var _Sources = (() => {
   var DOMAIN = "https://2tencb.pro";
   var HAITENCBInfo = {
     version: "1.0.0",
-    name: "2tencb",
+    name: "2TENCB",
     icon: "icon.png",
     author: "L\xEA \u0110\u1EA1i Thi\u1EC7n Nh\xE2n",
     authorWebsite: "https://github.com/huynlx/",
-    description: "Extension that pulls manga from 2tencb.",
+    description: "Extension that pulls manga from 2TENCB.",
     contentRating: import_types.ContentRating.EVERYONE,
     websiteBaseURL: DOMAIN,
     sourceTags: [
