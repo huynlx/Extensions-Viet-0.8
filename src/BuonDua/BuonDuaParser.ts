@@ -255,37 +255,50 @@ export class Parser {
     // Parse trực tiếp mảng JSON thành danh sách Chapter
     parseChapterList($: CheerioAPI): Chapter[] {
         const chapters: Chapter[] = [];
-        const seenChapNums = new Set<number>();
 
-        $('.pagination-list li a.pagination-link').each((index, element) => {
-            const $a = $(element);
-            const href = $a.attr('href') || '';
-            const pageText = $a.text().trim();
+        // 1. Lấy href từ nút End
+        const endHref =
+            $('nav.pagination a.pagination-next')
+                .filter((_, el) => $(el).text().trim() === 'End')
+                .attr('href') ||
+            $('nav.pagination a.pagination-next').last().attr('href') ||
+            '';
 
-            if (!href) return;
+        let totalPages = 1;
+        const match = endHref.match(/[?&]page=(\d+)/);
 
-            const chapNum = parseInt(pageText, 10);
-            if (isNaN(chapNum)) return;
+        // Dùng match?.[1] để tránh lỗi undefined
+        if (match?.[1]) {
+            totalPages = parseInt(match[1], 10);
+        }
 
-            if (seenChapNums.has(chapNum)) return;
-            seenChapNums.add(chapNum);
+        // 2. Lấy một href mẫu từ bất kỳ thẻ phân trang nào
+        let sampleHref = '';
+        $('.pagination-list li a.pagination-link, nav.pagination a').each((_, el) => {
+            const h = $(el).attr('href');
+            if (h && h.includes('page=')) {
+                sampleHref = h;
+                return false;
+            }
+        });
 
-            const chapterId = href.replace(/^\//, '').trim();
+        // 3. Sinh danh sách chapter
+        if (sampleHref && totalPages > 1) {
+            for (let i = 1; i <= totalPages; i++) {
+                const pageHref = sampleHref.replace(/page=\d+/, `page=${i}`);
+                const chapterId = pageHref.replace(/^\//, '').trim();
 
-            if (chapterId) {
                 chapters.push(
                     App.createChapter({
                         id: chapterId,
-                        name: decodeHTML(`Trang ${chapNum}`),
-                        chapNum: chapNum,
+                        name: decodeHTML(`Trang ${i}`),
+                        chapNum: i,
                         time: new Date(),
                     })
                 );
             }
-        });
-
-        // Trường hợp bài viết chỉ có 1 trang
-        if (chapters.length === 0) {
+        } else {
+            // Fallback: Trường hợp bài chỉ có 1 trang
             const canonicalHref = $('link[rel="canonical"]').attr('href') || '';
             const fallbackId = canonicalHref.replace(/^https?:\/\/[^\/]+\//, '').trim();
 
