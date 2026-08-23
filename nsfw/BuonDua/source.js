@@ -1402,29 +1402,34 @@ var _Sources = (() => {
     // Parse trực tiếp mảng JSON thành danh sách Chapter
     parseChapterList($) {
       const chapters = [];
-      const seenChapNums = /* @__PURE__ */ new Set();
-      $(".pagination-list li a.pagination-link").each((index, element) => {
-        const $a = $(element);
-        const href = $a.attr("href") || "";
-        const pageText = $a.text().trim();
-        if (!href) return;
-        const chapNum = parseInt(pageText, 10);
-        if (isNaN(chapNum)) return;
-        if (seenChapNums.has(chapNum)) return;
-        seenChapNums.add(chapNum);
-        const chapterId = href.replace(/^\//, "").trim();
-        if (chapterId) {
+      const endHref = $("nav.pagination a.pagination-next").filter((_, el) => $(el).text().trim() === "End").attr("href") || $("nav.pagination a.pagination-next").last().attr("href") || "";
+      let totalPages = 1;
+      const match = endHref.match(/[?&]page=(\d+)/);
+      if (match?.[1]) {
+        totalPages = parseInt(match[1], 10);
+      }
+      let sampleHref = "";
+      $(".pagination-list li a.pagination-link, nav.pagination a").each((_, el) => {
+        const h = $(el).attr("href");
+        if (h && h.includes("page=")) {
+          sampleHref = h;
+          return false;
+        }
+      });
+      if (sampleHref && totalPages > 1) {
+        for (let i = 1; i <= totalPages; i++) {
+          const pageHref = sampleHref.replace(/page=\d+/, `page=${i}`);
+          const chapterId = pageHref.replace(/^\//, "").trim();
           chapters.push(
             App.createChapter({
               id: chapterId,
-              name: decodeHTML(`Trang ${chapNum}`),
-              chapNum,
+              name: decodeHTML(`Trang ${i}`),
+              chapNum: i,
               time: /* @__PURE__ */ new Date()
             })
           );
         }
-      });
-      if (chapters.length === 0) {
+      } else {
         const canonicalHref = $('link[rel="canonical"]').attr("href") || "";
         const fallbackId = canonicalHref.replace(/^https?:\/\/[^\/]+\//, "").trim();
         if (fallbackId) {
