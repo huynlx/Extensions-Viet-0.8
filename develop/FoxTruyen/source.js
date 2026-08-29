@@ -1392,7 +1392,7 @@ var _Sources = (() => {
       $(".fx-genres a.fx-genre").each((_, obj) => {
         const label = decodeHTML($(obj).text().trim());
         const href = $(obj).attr("href") || "";
-        const id = href.split("/").pop() || label;
+        const id = href.match(/-(\d+)\.html$/)?.[1] || label;
         tags.push(App.createTag({ label, id }));
       });
       const titles = [decodeHTML($("h1.fx-info__title").text().trim())];
